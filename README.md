@@ -1,64 +1,43 @@
-# Strength & Balance Check (MVP 0.1)
+# Sit-to-stand check (MVP 0.2)
 
-A web app that a Spitex nurse opens on a phone during a home visit. The phone films the client, an on-device pose model (MediaPipe Pose Landmarker) finds 33 body points per frame, and simple rules turn them into the three CDC STEADI tests:
+A phone web app for older adults and Spitex visits. The phone camera and an on-device pose model (MediaPipe Pose Landmarker) watch the person; simple rules count and time the movements. No video is recorded or sent.
 
-- **Timed Up and Go**: time from "Go" to seated again (StoppSturz cut-off 13.5 s)
-- **30-second chair stand**: full stands in 30 s, with the CDC reference for age and sex
-- **4-stage balance**: seconds held per stage until a foot moves
+Two pages:
 
-It then shows a one-page report, proposes the next exercise level (Otago-style ladders, one step per visit, the nurse confirms) and exports a session JSON. No video leaves the phone.
+- **`index.html`, the simple screen for user tests.** One exercise, the 30-second chair stand. Spoken guidance in French, German, Italian, English or Spanish, a hands-free start once the person is seated and fully in view, a big counter that also counts out loud, then the result and the next exercise. Hidden team notes log each session for the test.
+- **`nurse.html`, the full nurse version.** Timed Up and Go, 30-second chair stand and 4-stage balance, a report with CDC references and the trend against the last visit, proposed exercise levels and a session JSON.
 
-## Try it on a phone
+## Live app
 
-Open **https://raseone19.github.io/Independant_AI_EPFL/** on the phone and allow the camera.
+**https://raseone19.github.io/Independant_AI_EPFL/** (the nurse version is at `/nurse.html`)
 
-The camera only works over HTTPS, which GitHub Pages provides. If the link does not load yet, turn Pages on once: **Settings > Pages**, Source "Deploy from a branch", branch `main`, folder `/ (root)`, Save, then wait about a minute. Every push to `main` updates the live app.
+The camera needs HTTPS, which GitHub Pages provides. To turn Pages on once: make the repo public (or use GitHub Pro), then **Settings > Pages**, Source "Deploy from a branch", branch `main`, folder `/ (root)`, Save. Every push to `main` updates the live app.
 
-Pages needs either a public repo or GitHub Pro (free for students through the GitHub Student Developer Pack). Either way the app's URL itself is public, but the app holds no data: everything stays on the phone.
+## Running a user test with the simple screen
 
-Phone setup: landscape, on a tripod at hip height, 3.5 to 4 m away, side-on to a 3 m walkway with the chair at one end, back camera, one person in view.
+1. Open the link on the phone and tap the person's language.
+2. Open **For the team** and set the age band and sex. They are only used for the suggested exercise and never shown to the person.
+3. Give the phone to the person and ask them to place it so it sees them. This is the setup task: note whether they need help.
+4. They tap **Start** and sit down. The app says what to do, starts by itself, counts out loud for 30 s and shows the result.
+5. Count the stands by hand at the same time. On the result screen open **Team notes**: enter your count, tick "Needed help to place the phone" if so, add notes, **Save**.
+6. After the last person: **For the team > Export results (CSV)**. Each phone keeps its own sessions.
+
+Safety: a sturdy chair against a wall, someone always next to the person, and only the chair stand.
+
+## How the simple screen decides
+
+- **Start:** whole body in view and seated (knee angle under 115°) for 1.5 s, then "3, 2, 1, go".
+- **Count:** one stand each time the knee straightens past 160°. At 30 s, a stand that is more than halfway up counts (CDC rule).
+- **No guessing:** if fewer than 80% of the frames were usable, it shows "?" and asks to try again.
+- **Next exercise** (3 times a week, from the Otago programme): 0 stands → stand up with both hands, 5 times; below the CDC reference for age and sex → with one hand, 5 times; at or above it → without hands, 10 times.
+- **Arms:** if the wrists leave the chest, the result adds a tip to keep the arms crossed.
 
 ## Working on it as a team
 
 1. `git clone https://github.com/raseone19/Independant_AI_EPFL.git`
-2. Make a branch per change (`git checkout -b chair-stand-thresholds`), push it, open a pull request.
-3. `npm test` must pass before merging. Changing a threshold? Say which clips you replayed and what changed.
-4. **Never commit videos of people**, even while the repo is private. `recordings/`, `*.mp4` and `*.mov` are git-ignored: keep test clips on your own drive.
-
-## A session, step by step
-
-1. **Setup**: client code, age band, sex, voice language (FR/DE/EN), camera. Tap **Start camera**.
-2. Wait for the green "Full body in view" chip.
-3. **Tests**: pick one, tap **Start**. Chair stand and TUG read the instructions aloud and count down "3, 2, 1, Go". Balance: show the position, tap Start when the client is steady.
-4. **Report**: results, CDC reference, flags, trend against the last visit, proposed levels. Tick "Arms were used" if needed (CDC scores 0). Change a level if you disagree.
-5. **Download JSON** (or Copy). Next visit: load that file as "Last visit" to get the trend and the level changes. Try it with `samples/last_visit_example.json`.
-
-**Use a video file** runs the same pipeline on a recorded clip: pause or drag to the start of a test, then tap Start. The timer uses the clip's own timeline, so results are exact even on a slow laptop. This is how you test and tune without a person in front of the camera.
-
-## Files
-
-| File | What it is |
-| --- | --- |
-| `index.html` | The whole app: UI, camera or video input, MediaPipe, skeleton overlay, test flows, report, export |
-| `logic.js` | The test rules, no DOM and no MediaPipe: features, 1€ filter, framing check, the three test state machines, CDC references, level proposals, report rows |
-| `test/logic.test.mjs` | 21 unit tests on synthetic movements (`npm test`, Node 20+) |
-| `tools/e2e_fake_camera.py` | Clicks through the app in headless Chrome with a clip as fake camera |
-| `samples/last_visit_example.json` | Made-up previous session for demos |
-
-## Tuning
-
-Every threshold is in `CONFIG` at the top of `logic.js`:
-
-| Setting | Default | Meaning |
-| --- | --- | --- |
-| `chairStand.standAboveDeg` / `sitBelowDeg` | 160° / 115° | Knee angle that counts as standing / seated |
-| `chairStand.armsAwayRatio` | 0.9 | Wrist distance from the chest, as a share of torso length, that flags "arms used" |
-| `balance.moveRatio` / `moveMinMs` | 0.08 / 250 ms | Foot displacement (share of leg length) and how long it must last to end a stage |
-| `balance.touchdownRatio` | 0.04 | One-leg stage: lifted ankle this close to the standing ankle counts as touchdown |
-| `tug.walkMinRatio` / `seatedHoldMs` | 0.8 / 300 ms | Sideways hip travel needed, and seated time needed, before the timer stops |
-| `quality.minGoodFrameRatio` | 0.8 | Below this share of usable frames the report says "not measured" |
-
-Change a value, run `npm test`, then replay your recorded clips in video-file mode and compare with a stopwatch and a manual count.
+2. Make a branch per change, push it, open a pull request.
+3. `npm test` must pass before merging (Node 20+). Changing a threshold? Say which clips you replayed and what changed.
+4. **Never commit videos of people.** `recordings/`, `*.mp4` and `*.mov` are git-ignored: keep test clips on your own drive.
 
 ## Run it locally
 
@@ -67,23 +46,39 @@ python3 -m http.server 8000      # then open http://localhost:8000 on the same c
 npm test                         # unit tests
 ```
 
-`localhost` counts as secure, so the laptop webcam works. Phones need the HTTPS URL above.
+Double-clicking the HTML file does not work: the browser blocks the code from loading as a plain file. `localhost` counts as secure, so the laptop webcam works.
+
+## Files
+
+| File | What it is |
+| --- | --- |
+| `index.html` | Simple screen for user tests (chair stand only) |
+| `nurse.html` | Full nurse version: camera or video file, 3 tests, report, levels, JSON export |
+| `logic.js` | The rules, shared by both pages: features, 1€ filter, framing check, the three test state machines, CDC references, level proposals |
+| `test/logic.test.mjs` | 21 unit tests on synthetic movements |
+| `tools/e2e_simple.py`, `tools/e2e_fake_camera.py` | Headless Chrome runs of each page with a recorded clip as the camera |
+| `samples/last_visit_example.json` | Made-up previous session for the nurse version |
+
+## Tuning
+
+Every threshold is in `CONFIG` at the top of `logic.js`:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `chairStand.standAboveDeg` / `sitBelowDeg` | 160° / 115° | Knee angle that counts as standing / seated |
+| `chairStand.armsAwayRatio` | 0.9 | Wrist distance from the chest, as a share of torso length, that flags the arms |
+| `balance.moveRatio` / `moveMinMs` | 0.08 / 250 ms | Foot displacement (share of leg length) and how long it must last to end a balance stage |
+| `tug.walkMinRatio` / `seatedHoldMs` | 0.8 / 300 ms | Sideways hip travel needed, and seated time needed, before the TUG timer stops |
+| `quality.minGoodFrameRatio` | 0.8 | Below this share of usable frames, no number is shown |
 
 ## What the page loads
 
-- MediaPipe library and WASM from jsDelivr, the pose model from Google's model storage (`@mediapipe/tasks-vision` 1.2.3, Apache-2.0).
-- To self-host them (offline demo, or no third-party requests), copy `vision_bundle.mjs` and `wasm/` from the npm package and the `.task` model into the folder, then open `index.html?lib=./vision_bundle.mjs&wasm=./wasm&model=./pose_landmarker_lite.task`. Only relative paths are accepted.
+The MediaPipe library and WASM come from jsDelivr and the pose model from Google's model storage (`@mediapipe/tasks-vision` 1.2.3, Apache-2.0). To serve them from this repo instead, copy `vision_bundle.mjs`, `wasm/` and the `.task` model into the folder and open the page with `?lib=./vision_bundle.mjs&wasm=./wasm&model=./pose_landmarker_lite.task`. Only relative paths are accepted.
 
 ## Known limits
 
-- Thresholds are first guesses: they pass the synthetic tests and ran cleanly on a real test clip, but were not yet checked against stopwatch counts with older adults.
+- Thresholds are first guesses: they pass the synthetic tests and ran cleanly on real clips, but have not been checked against hand counts with older adults yet. That is what the team notes are for.
 - One person in view. With two people the model follows the clearest one.
-- Balance checks that the feet do not move, not that the client is in the right position: the nurse checks the position.
-- TUG needs the whole 3 m walkway in view. If the client walks out of frame, use "Seated: stop the timer".
-- Spoken instructions use the phone's built-in voices, so quality varies.
-- Not a medical device: it documents exercise performance, it does not assess fall risk. The nurse interprets.
-
-## Checked so far
-
-- 21 unit tests pass (counting with noise, the CDC halfway rule, arms flag, foot movement and touchdown, TUG stop without false stops during walking, references, levels, report rows).
-- Headless Chrome with a real clip as fake camera: model loads, about 25 fps with 40 ms inference on a laptop CPU, all three test flows, report and JSON export, video-file mode, no page errors. Phone speed is still to be measured (week 1 gate: 15 fps or more).
+- The simple screen uses the front camera so the person sees the counter. A view from a little to the side shows the knees best; straight from the front, the count may be less reliable.
+- Spoken guidance uses the phone's built-in voices, so quality varies.
+- Not a medical device: it documents exercise performance and does not assess fall risk.

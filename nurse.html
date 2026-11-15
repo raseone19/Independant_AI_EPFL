@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1216" />
+<link rel="icon" href="data:," />
+<title>Strength &amp; Balance Check (MVP)</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #161a20; --line: #2a313b; --text: #e9edf2; --muted: #98a3af;
+    --ok: #2fbf71; --warn: #f2b33d; --bad: #ef5b5b; --accent: #4c8dff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; font-weight: 650; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: #232a33; color: var(--muted); white-space: nowrap; }
+  .chip.ok { background: rgba(47,191,113,.16); color: var(--ok); }
+  .chip.warn { background: rgba(242,179,61,.16); color: var(--warn); }
+  .chip.bad { background: rgba(239,91,91,.16); color: var(--bad); }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
+  #stage { position: relative; background: #000; min-height: 240px; overflow: hidden; }
+  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .mirror { transform: scaleX(-1); }
+  #placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); padding: 24px; }
+  #hud { position: absolute; left: 14px; right: 14px; top: 10px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+  #bigText { font-size: clamp(30px, 8vw, 72px); font-weight: 750; text-shadow: 0 2px 10px rgba(0,0,0,.8); line-height: 1.05; }
+  #hudRight { font-size: clamp(14px, 2.6vw, 20px); font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.8); text-align: right; }
+  #cue { position: absolute; left: 14px; right: 14px; bottom: 12px; font-size: clamp(16px, 3.2vw, 26px); font-weight: 650; text-shadow: 0 2px 8px rgba(0,0,0,.85); pointer-events: none; }
+  aside { border-left: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; min-height: 0; }
+  /* Phone held upright: video on top, controls below, the page scrolls. */
+  @media (max-width: 640px) {
+    body { height: auto; min-height: 100vh; }
+    main { display: block; }
+    #stage { height: 58vh; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 6px 0 3px; }
+  input, select, textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: #0f1216; color: var(--text); font-size: 15px; font-family: inherit; }
+  .row { display: flex; gap: 8px; } .row > * { flex: 1; min-width: 0; }
+  .check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .check input { width: auto; }
+  button { appearance: none; border: 1px solid var(--line); background: #232a33; color: var(--text); padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: 650; cursor: pointer; font-family: inherit; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+  button.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .stack { display: grid; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .flag-bad { color: var(--bad); font-weight: 650; } .flag-ok { color: var(--ok); } .flag-check { color: var(--warn); font-weight: 650; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  ul.obs { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; background: #0b0e12; padding: 8px; border-radius: 8px; max-height: 240px; overflow: auto; }
+  .hidden { display: none !important; }
+  td select { padding: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Strength &amp; Balance Check <span class="muted">MVP 0.1</span></h1>
+  <span id="chipModel" class="chip">model: not loaded</span>
+  <span id="chipFraming" class="chip">framing: –</span>
+  <span id="chipLight" class="chip hidden">light</span>
+  <span id="chipFps" class="chip">– fps</span>
+  <span id="chipConf" class="chip">conf –</span>
+</header>
+
+<main>
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+    <div id="placeholder">Start the camera or load a video.<br />Phone in landscape on a tripod, hip height, 3.5 to 4 m away, whole body in view.</div>
+    <div id="hud"><div id="bigText"></div><div id="hudRight"></div></div>
+    <div id="cue"></div>
+  </div>
+
+  <aside>
+    <section class="card">
+      <h2>1 · Setup</h2>
+      <div class="row">
+        <div><label for="client">Client code</label><input id="client" value="C-001" maxlength="20" autocomplete="off" /></div>
+        <div><label for="age">Age</label><select id="age"></select></div>
+        <div><label for="sex">Sex</label><select id="sex"><option value="F">F</option><option value="M">M</option></select></div>
+      </div>
+      <div class="row">
+        <div><label for="lang">Voice</label><select id="lang"><option value="fr">Français</option><option value="de">Deutsch</option><option value="en">English</option></select></div>
+        <div><label for="cam">Camera</label><select id="cam"><option value="environment">Back</option><option value="user">Front</option></select></div>
+        <div><label for="model">Model</label><select id="model"><option value="lite">Lite</option><option value="full">Full</option></select></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnCamera" class="primary">Start camera</button>
+        <button id="btnFile">Use a video file</button>
+      </div>
+      <input id="fileInput" type="file" accept="video/*" class="hidden" />
+      <div id="fileControls" class="hidden">
+        <div class="row" style="margin-top:8px; align-items:center">
+          <button id="btnPlay" style="flex:0 0 auto">Pause</button>
+          <input id="seek" type="range" min="0" max="1" step="0.05" value="0" aria-label="Position in the video" />
+        </div>
+        <div class="row">
+          <div><label for="rate">Video speed</label><select id="rate"><option value="1">1× (real time)</option><option value="0.5">0.5× (slow phones)</option></select></div>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="readAloud" checked /> Read instructions aloud</label>
+      <p id="setupMsg" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <h2>2 · Tests</h2>
+      <div class="stack">
+        <button data-test="tug">Timed Up and Go</button>
+        <button data-test="chair">30-second chair stand</button>
+        <button data-test="balance">4-stage balance</button>
+      </div>
+      <div id="testPanel" class="hidden" style="margin-top:12px">
+        <p id="testInstructions" style="margin:0 0 10px"></p>
+        <div class="stack">
+          <button id="btnStart" class="primary">Start</button>
+          <button id="btnSeated" class="hidden">Seated: stop the timer</button>
+          <button id="btnStop" class="danger hidden">Cancel test</button>
+        </div>
+        <label class="check"><input type="checkbox" id="override" /> Start even if framing is not OK</label>
+        <div id="stageLog" class="muted" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3 · Report</h2>
+      <div id="report"><p class="muted">No test done yet.</p></div>
+      <label for="prevFile">Last visit's session JSON (optional: adds "last visit" and adapts levels)</label>
+      <input id="prevFile" type="file" accept="application/json,.json" />
+      <label for="note">Nurse note</label>
+      <textarea id="note" rows="2" placeholder="Optional"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="btnDownload">Download JSON</button>
+        <button id="btnCopy">Copy JSON</button>
+      </div>
+      <details style="margin-top:8px"><summary class="muted">Session JSON</summary><pre id="jsonOut"></pre></details>
+    </section>
+  </aside>
+</main>
+
+<script type="module">
+import * as L from './logic.js';
+
+const APP_VERSION = '0.1.0';
+const MP_VERSION = '1.2.3';
+
+// ------------------------------------------------------------ configuration
+// Optional same-origin overrides (?lib=./x&wasm=./y&model=./z&delegate=CPU) for
+// offline use and automated tests. Only relative paths are accepted.
+const params = new URLSearchParams(location.search);
+const local = (k) => {
+  const v = params.get(k);
+  return v && /^\.\/[\w\-./]+$/.test(v) && !v.includes('..') ? v : null;
+};
+const LIB_URL = local('lib') ?? `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`;
+const WASM_URL = local('wasm') ?? `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
+const MODEL_URLS = {
+  lite: local('model') ?? 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  full: local('modelFull') ?? 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+};
+const FORCE_CPU = params.get('delegate') === 'CPU';
+
+// ------------------------------------------------------------ words
+const VOICE = { en: 'en-GB', fr: 'fr-CH', de: 'de-CH' };
+const SAY = {
+  go: { en: 'Go', fr: 'Partez', de: 'Los' },
+  stop: { en: 'Stop', fr: 'Stop', de: 'Stopp' },
+  ready: { en: 'Ready, begin', fr: 'Prêt, partez', de: 'Bereit, los' },
+  chair: {
+    en: 'Sit in the middle of the chair, arms crossed on your chest. On go, stand up fully and sit down again, as many times as you can for thirty seconds.',
+    fr: 'Asseyez-vous au milieu de la chaise, bras croisés sur la poitrine. Au signal, levez-vous complètement et rasseyez-vous, autant de fois que possible pendant trente secondes.',
+    de: 'Setzen Sie sich in die Mitte des Stuhls, Arme vor der Brust gekreuzt. Auf Los ganz aufstehen und wieder hinsetzen, so oft Sie können, dreissig Sekunden lang.',
+  },
+  tug: {
+    en: 'On go, stand up, walk to the mark at your normal pace, turn, walk back and sit down.',
+    fr: 'Au signal, levez-vous, marchez jusqu’au repère à votre rythme habituel, faites demi-tour, revenez et asseyez-vous.',
+    de: 'Auf Los aufstehen, in normalem Tempo bis zur Markierung gehen, umdrehen, zurückgehen und hinsetzen.',
+  },
+  stages: [
+    { en: 'Feet side by side', fr: 'Pieds côte à côte', de: 'Füsse nebeneinander' },
+    { en: 'One foot slightly ahead, the instep touching the big toe', fr: 'Un pied légèrement devant, le milieu du pied contre le gros orteil', de: 'Ein Fuss leicht vorne, das Fussgewölbe an der Grosszehe' },
+    { en: 'One foot in front of the other, heel touching toe', fr: 'Un pied devant l’autre, le talon contre les orteils', de: 'Ein Fuss vor dem anderen, die Ferse an den Zehen' },
+    { en: 'Stand on one foot', fr: 'Tenez-vous sur un pied', de: 'Auf einem Bein stehen' },
+  ],
+};
+const STAGE_NAMES = ['Feet side by side', 'Semi-tandem', 'Tandem', 'One leg'];
+const TESTS = {
+  tug: {
+    name: 'Timed Up and Go',
+    help: 'Chair at one end of a 3 m walkway, a mark on the floor at 3 m. Client seated, back against the chair. The timer starts on "Go" and stops when the client sits down again. Cut-off in the StoppSturz Spitex manual: 13.5 s.',
+  },
+  chair: {
+    name: '30-second chair stand',
+    help: 'Chair without armrests, against a wall. Client in the middle of the seat, arms crossed on the chest, feet flat. Stand next to the client. Counts full stands for 30 s from "Go" (CDC STEADI).',
+  },
+  balance: {
+    name: '4-stage balance',
+    help: 'Show each position first. Help the client into it; when steady, let go and tap Start. Feet must not move for 10 s; arms may move. Stay ready to catch. The test stops at the first stage failed (CDC STEADI).',
+  },
+};
+
+// ------------------------------------------------------------ state
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const canvas = $('overlay');
+const ctx = canvas.getContext('2d');
+const lumCanvas = document.createElement('canvas');
+lumCanvas.width = 32;
+lumCanvas.height = 18;
+const lumCtx = lumCanvas.getContext('2d', { willReadFrequently: true });
+
+const state = {
+  mp: null, landmarker: null, modelKey: null, delegate: null,
+  source: null, stream: null, objectUrl: null, running: false,
+  lastTs: -1, lastVideoTime: -1,
+  smoother: new L.FeatureSmoother(),
+  gate: new L.FramingGate(),
+  framingOk: false, framingReason: 'no_person',
+  feat: null, lm: null, lum: null,
+  perf: { frames: 0, poseFrames: 0, infer: [], fps: 0, lastTs: null, startedAt: null },
+  test: null,
+  session: { tests: {} },
+  previous: null,
+  levelChoice: {},
+};
+window.__app = state; // for debugging and automated tests
+
+// ------------------------------------------------------------ helpers
+function setChip(id, text, cls = '') {
+  const el = $(id);
+  el.textContent = text;
+  el.className = 'chip' + (cls ? ' ' + cls : '');
+}
+const bigText = (t) => { $('bigText').textContent = t; };
+const hudRight = (t) => { $('hudRight').textContent = t; };
+const cue = (t) => { $('cue').textContent = t; };
+const lang = () => $('lang').value;
+
+function speak(entry, onEnd) {
+  const text = typeof entry === 'string' ? entry : entry?.[lang()];
+  let finished = false;
+  const done = () => { if (!finished) { finished = true; onEnd?.(); } };
+  try {
+    if (!text || !('speechSynthesis' in window)) return done();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = VOICE[lang()];
+    u.rate = 0.95;
+    u.onend = done;
+    u.onerror = done;
+    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    if (onEnd) setTimeout(done, 400 + text.length * 90); // fallback if onend never fires
+  } catch {
+    done();
+  }
+}
+
+// Test clock: media time for a video file (exact replay), wall clock for the camera.
+const testNow = () => (state.source === 'file' ? video.currentTime * 1000 : performance.now());
+
+function errorText(e) {
+  if (!e) return 'Unknown error';
+  if (e.name === 'NotAllowedError') return 'Camera permission denied. Allow the camera in the browser settings and try again.';
+  if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') return 'No suitable camera found.';
+  if (e.name === 'NotReadableError') return 'The camera is used by another app.';
+  return e.message || String(e);
+}
+
+// ------------------------------------------------------------ model
+async function loadModel(key) {
+  if (state.landmarker && state.modelKey === key) return;
+  setChip('chipModel', 'model: loading…', 'warn');
+  if (!state.mp) state.mp = await import(LIB_URL);
+  const { FilesetResolver, PoseLandmarker } = state.mp;
+  const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
+  const options = (delegate) => ({
+    baseOptions: { modelAssetPath: MODEL_URLS[key], delegate },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+  let delegate = FORCE_CPU ? 'CPU' : 'GPU';
+  let landmarker;
+  try {
+    landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
+  } catch (err) {
+    if (delegate !== 'GPU') throw err;
+    console.warn('GPU delegate failed, using CPU', err);
+    delegate = 'CPU';
+    landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
+  }
+  try { state.landmarker?.close(); } catch {}
+  Object.assign(state, { landmarker, modelKey: key, delegate, lastTs: -1 });
+  setChip('chipModel', `model: ${key} · ${delegate}`, 'ok');
+}
+
+// ------------------------------------------------------------ sources
+function stopSource() {
+  state.running = false;
+  abortTest();
+  if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+  Object.assign(state, { stream: null, objectUrl: null, source: null });
+  video.pause();
+  video.removeAttribute('src');
+  video.srcObject = null;
+  $('fileControls').classList.add('hidden');
+}
+
+function setMirror(on) {
+  video.classList.toggle('mirror', on);
+  canvas.classList.toggle('mirror', on);
+}
+
+async function startCamera() {
+  speak(' ');
+  $('setupMsg').textContent = '';
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera needs a secure page: open the app over https:// (or localhost).');
+    stopSource();
+    $('setupMsg').textContent = 'Loading the pose model…';
+    await loadModel($('model').value);
+    $('setupMsg').textContent = 'Starting the camera…';
+    const facing = $('cam').value;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    state.stream = stream;
+    state.source = 'camera';
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+    setMirror(facing === 'user');
+    begin();
+    $('setupMsg').textContent = '';
+  } catch (e) {
+    console.error(e);
+    $('setupMsg').textContent = errorText(e);
+    setChip('chipModel', state.landmarker ? `model: ${state.modelKey} · ${state.delegate}` : 'model: error', state.landmarker ? 'ok' : 'bad');
+  }
+}
+
+async function startFile(file) {
+  $('setupMsg').textContent = '';
+  try {
+    stopSource();
+    $('setupMsg').textContent = 'Loading the pose model…';
+    await loadModel($('model').value);
+    state.objectUrl = URL.createObjectURL(file);
+    video.srcObject = null;
+    video.src = state.objectUrl;
+    video.muted = true;
+    video.playbackRate = Number($('rate').value) || 1;
+    state.source = 'file';
+    await video.play();
+    setMirror(false);
+    $('fileControls').classList.remove('hidden');
+    $('btnPlay').textContent = 'Pause';
+    begin();
+    $('setupMsg').textContent = `Playing ${file.name}. Select a test and tap Start at the right moment in the video.`;
+  } catch (e) {
+    console.error(e);
+    $('setupMsg').textContent = errorText(e);
+  }
+}
+
+function begin() {
+  $('placeholder').classList.add('hidden');
+  state.smoother.reset();
+  state.gate.reset();
+  state.lastVideoTime = -1;
+  state.perf = { frames: 0, poseFrames: 0, infer: [], fps: 0, lastTs: null, startedAt: performance.now() };
+  state.running = true;
+  scheduleNext();
+}
+
+const hasRVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+function scheduleNext() {
+  if (!state.running) return;
+  if (hasRVFC) video.requestVideoFrameCallback((now, meta) => onFrame(meta));
+  else requestAnimationFrame(() => onFrame(null));
+}
+
+function onFrame(meta) {
+  if (!state.running) return;
+  try {
+    processFrame(meta);
+  } catch (e) {
+    console.error(e);
+    cue('Error: ' + (e.message || e));
+  }
+  scheduleNext();
+}
+
+// ------------------------------------------------------------ per frame
+function processFrame(meta) {
+  if (!state.landmarker || video.readyState < 2 || !video.videoWidth) return;
+  const vt = video.currentTime;
+  if (!meta && vt === state.lastVideoTime) return; // no new frame yet
+  state.lastVideoTime = vt;
+
+  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }
+
+  let ts = performance.now();
+  if (ts <= state.lastTs) ts = state.lastTs + 1;
+  state.lastTs = ts;
+  const t0 = performance.now();
+  const res = state.landmarker.detectForVideo(video, ts);
+  const inferMs = performance.now() - t0;
+
+  const tTest = state.source === 'file' ? (meta?.mediaTime ?? vt) * 1000 : ts;
+  const lm = res?.landmarks?.[0] ?? null;
+  const wlm = res?.worldLandmarks?.[0] ?? null;
+  const aspect = video.videoWidth / video.videoHeight;
+  const raw = lm ? L.extractFeatures(lm, wlm, aspect) : { ok: false, visibility: 0 };
+  const feat = state.smoother.smooth(raw, tTest);
+  const framing = L.framingCheck(lm);
+  state.framingOk = state.gate.update(framing.ok, tTest);
+  state.framingReason = framing.reason;
+  state.lm = lm;
+  state.feat = feat;
+
+  // performance numbers
+  const p = state.perf;
+  p.frames++;
+  if (lm) p.poseFrames++;
+  p.infer.push(inferMs);
+  if (p.infer.length > 600) p.infer.shift();
+  if (p.lastTs !== null) {
+    const inst = 1000 / Math.max(1, ts - p.lastTs);
+    p.fps = p.fps ? p.fps * 0.9 + inst * 0.1 : inst;
+  }
+  p.lastTs = ts;
+  if (p.frames % 20 === 1) measureLight();
+
+  draw(lm, feat);
+  updateChips(feat, framing);
+  stepTest(feat, tTest);
+}
+
+function measureLight() {
+  try {
+    lumCtx.drawImage(video, 0, 0, 32, 18);
+    const d = lumCtx.getImageData(0, 0, 32, 18).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    state.lum = Math.round(sum / (d.length / 4));
+  } catch {
+    state.lum = null;
+  }
+}
+
+function updateChips(feat, framing) {
+  const p = state.perf;
+  setChip('chipFps', `${Math.round(p.fps)} fps · ${Math.round(L.mean(p.infer.slice(-30)) || 0)} ms`, p.fps >= 15 ? 'ok' : p.fps >= 10 ? 'warn' : 'bad');
+  const conf = feat?.visibility ? Math.round(feat.visibility * 100) : 0;
+  setChip('chipConf', `conf ${conf}%`, conf >= 80 ? 'ok' : conf >= 50 ? 'warn' : 'bad');
+  if (framing.ok) setChip('chipFraming', state.framingOk ? L.FRAMING_MESSAGES.ok : 'Hold still…', state.framingOk ? 'ok' : 'warn');
+  else setChip('chipFraming', L.FRAMING_MESSAGES[framing.reason], 'bad');
+  const lightChip = $('chipLight');
+  if (state.lum !== null && state.lum < 45) {
+    lightChip.className = 'chip warn';
+    lightChip.textContent = 'Too dark: turn on a light';
+  } else {
+    lightChip.className = 'chip hidden';
+  }
+}
+
+function draw(lm, feat) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!lm || !state.mp) return;
+  const W = canvas.width, H = canvas.height;
+  ctx.lineWidth = Math.max(2, W / 300);
+  ctx.strokeStyle = state.framingOk ? '#2fbf71' : '#f2b33d';
+  for (const { start, end } of state.mp.PoseLandmarker.POSE_CONNECTIONS) {
+    const a = lm[start], b = lm[end];
+    if ((a.visibility ?? 1) < 0.3 || (b.visibility ?? 1) < 0.3) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x * W, a.y * H);
+    ctx.lineTo(b.x * W, b.y * H);
+    ctx.stroke();
+  }
+  const r = Math.max(3, W / 220);
+  for (let i = 11; i < 33; i++) {
+    const p = lm[i];
+    ctx.fillStyle = (p.visibility ?? 1) >= 0.5 ? '#ffffff' : 'rgba(255,255,255,.35)';
+    ctx.beginPath();
+    ctx.arc(p.x * W, p.y * H, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (feat?.ok && Number.isFinite(feat.kneeAngle)) {
+    const k = (lm[25].visibility ?? 0) >= (lm[26].visibility ?? 0) ? lm[25] : lm[26];
+    label(`${Math.round(feat.kneeAngle)}°`, k.x * W + 2.5 * r, k.y * H);
+  }
+}
+
+function label(text, x, y) {
+  const mirrored = canvas.classList.contains('mirror');
+  ctx.save();
+  ctx.font = `600 ${Math.max(14, canvas.width / 45)}px system-ui, sans-serif`;
+  ctx.textBaseline = 'middle';
+  if (mirrored) {
+    ctx.scale(-1, 1);
+    x = -x;
+  }
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,.75)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ------------------------------------------------------------ tests
+function selectTest(kind) {
+  if (state.test && ['countdown', 'running'].includes(state.test.phase)) return;
+  state.test = { kind, phase: 'ready', runner: kind === 'balance' ? new L.BalanceTest() : null, timers: [] };
+  document.querySelectorAll('[data-test]').forEach((b) => b.classList.toggle('selected', b.dataset.test === kind));
+  $('testPanel').classList.remove('hidden');
+  $('testInstructions').textContent = TESTS[kind].help;
+  $('stageLog').textContent = '';
+  bigText('');
+  hudRight(TESTS[kind].name);
+  cue('');
+  renderTestButtons();
+}
+
+function renderTestButtons() {
+  const T = state.test;
+  const busy = T && ['countdown', 'running'].includes(T.phase);
+  $('btnStart').classList.toggle('hidden', !T || busy || T.phase === 'done');
+  $('btnStop').classList.toggle('hidden', !busy);
+  $('btnSeated').classList.toggle('hidden', !(busy && T.kind === 'tug' && T.phase === 'running'));
+  document.querySelectorAll('[data-test]').forEach((b) => { b.disabled = !!busy; });
+  if (T?.kind === 'balance' && !busy && T.phase !== 'done') {
+    const i = T.runner.nextStage;
+    $('btnStart').textContent = i === null ? 'Done' : `Start stage ${i + 1}: ${STAGE_NAMES[i]}`;
+  } else {
+    $('btnStart').textContent = T?.phase === 'done' ? 'Done' : 'Start';
+  }
+}
+
+function onStart() {
+  const T = state.test;
+  if (!T) return;
+  if (!state.running) return cue('Start the camera or a video first.');
+  if (!state.framingOk && !$('override').checked) {
+    return cue(`Framing not OK: ${L.FRAMING_MESSAGES[state.framingReason] ?? state.framingReason}`);
+  }
+  cue('');
+  const live = state.source === 'camera';
+  const readAloud = live && $('readAloud').checked;
+
+  if (T.kind === 'balance') {
+    const i = T.runner.nextStage;
+    if (i === null) return;
+    T.phase = 'running';
+    if (live) speak(SAY.ready);
+    T.runner.startStage(testNow());
+    hudRight(`Stage ${i + 1}: ${STAGE_NAMES[i]}`);
+    renderTestButtons();
+    return;
+  }
+
+  T.runner = T.kind === 'chair' ? new L.ChairStandTest() : new L.TugTest();
+  T.phase = 'countdown';
+  renderTestButtons();
+  const go = () => {
+    if (state.test !== T || T.phase !== 'countdown') return;
+    T.phase = 'running';
+    T.runner.start(testNow());
+    renderTestButtons();
+  };
+  if (!live) return go(); // video file: start at the current frame, no countdown
+  const countdown = () => {
+    let n = 3;
+    const tick = () => {
+      if (state.test !== T || T.phase !== 'countdown') return;
+      if (n > 0) {
+        bigText(String(n));
+        speak(String(n));
+        n--;
+        T.timers.push(setTimeout(tick, 1000));
+      } else {
+        bigText(SAY.go[lang()]);
+        speak(SAY.go);
+        go();
+      }
+    };
+    tick();
+  };
+  if (readAloud) {
+    cue(SAY[T.kind][lang()]);
+    speak(SAY[T.kind], () => T.timers.push(setTimeout(countdown, 600)));
+  } else {
+    countdown();
+  }
+}
+
+function abortTest() {
+  const T = state.test;
+  if (!T) return;
+  T.timers.forEach(clearTimeout);
+  T.timers = [];
+  try { speechSynthesis.cancel(); } catch {}
+  if (['countdown', 'running'].includes(T.phase)) {
+    if (T.kind === 'balance' && T.runner) T.runner.current = null;
+    T.phase = 'ready';
+    if (T.kind !== 'balance') T.runner = null;
+    bigText('');
+    cue('Test cancelled.');
+  }
+  renderTestButtons();
+}
+
+function stepTest(feat, t) {
+  const T = state.test;
+  if (!T || T.phase !== 'running') return;
+
+  if (T.kind === 'chair') {
+    const r = T.runner.update(feat, t);
+    const left = Math.max(0, 30 - (t - T.runner.t0) / 1000);
+    bigText(String(T.runner.count));
+    hudRight(`${Math.ceil(left)} s left`);
+    if (r) {
+      if (state.source === 'camera') speak(SAY.stop);
+      saveResult('chair_stand_30s', { ...r, armsUsedConfirmed: false });
+      finishTest(`${r.stands} stands${r.reliable ? '' : ' (tracking too weak: not measured)'}`);
+    }
+  } else if (T.kind === 'tug') {
+    const r = T.runner.update(feat, t);
+    bigText(`${((t - T.runner.t0) / 1000).toFixed(1)} s`);
+    hudRight(T.runner.phase === 'seated' ? 'Waiting to stand up' : T.runner.walked ? 'Walking back, sitting down' : 'Walking');
+    if (r) {
+      saveResult('tug', r);
+      finishTest(`${r.timeS} s${r.reliable ? '' : ' (not measured)'}`);
+    }
+  } else if (T.kind === 'balance') {
+    const cur = T.runner.current;
+    if (!cur) return;
+    const r = T.runner.update(feat, t);
+    bigText(`${Math.min(10, (t - cur.t0) / 1000).toFixed(1)} s`);
+    if (r) {
+      if (state.source === 'camera') speak(SAY.stop);
+      $('stageLog').textContent = T.runner.results.map((x, i) => `${STAGE_NAMES[i]}: ${x.heldS} s${x.passed ? '' : ' (feet moved)'}`).join(' · ');
+      if (T.runner.finished) {
+        saveResult('balance_4stage', T.runner.summary());
+        finishTest(`${STAGE_NAMES[T.runner.results.length - 1]}: ${r.heldS} s`, `${r.heldS} s`);
+      } else {
+        T.phase = 'ready';
+        cue(`Next: ${SAY.stages[T.runner.nextStage][lang()]}`);
+        if (state.source === 'camera' && $('readAloud').checked) {
+          T.timers.push(setTimeout(() => speak(SAY.stages[T.runner.nextStage]), 1200));
+        }
+        renderTestButtons();
+      }
+    }
+  }
+}
+
+function onSeated() {
+  const T = state.test;
+  if (!T || T.kind !== 'tug' || T.phase !== 'running') return;
+  const r = T.runner.manualStop(testNow());
+  saveResult('tug', r);
+  finishTest(`${r.timeS} s (stopped by hand)`);
+}
+
+function finishTest(summary, big) {
+  const T = state.test;
+  T.phase = 'done';
+  T.timers.forEach(clearTimeout);
+  bigText(big ?? summary.split(' (')[0]);
+  cue(`${TESTS[T.kind].name}: ${summary}`);
+  renderTestButtons();
+  renderReport();
+}
+
+function saveResult(key, result) {
+  state.session.tests[key] = result;
+  // A new result replaces any level the nurse picked earlier for that exercise.
+  if (key === 'chair_stand_30s') delete state.levelChoice.sit_to_stand;
+  if (key === 'balance_4stage') delete state.levelChoice.balance;
+  if (!state.session.setup) {
+    state.session.setup = { framing_ok_at_start: state.framingOk, mean_luminance: state.lum };
+  }
+}
+
+// ------------------------------------------------------------ report and export
+function sessionBasics() {
+  return {
+    client: $('client').value.trim() || 'C-000',
+    age_band: $('age').value,
+    sex: $('sex').value,
+  };
+}
+
+function currentLevels() {
+  const b = sessionBasics();
+  const T = state.session.tests;
+  const target = L.targetLevels({ chair: T.chair_stand_30s, balance: T.balance_4stage, ageBand: b.age_band, sex: b.sex });
+  return L.proposeLevels(target, L.levelsFromSession(state.previous));
+}
+
+function exportSession() {
+  const p = state.perf;
+  const levels = currentLevels();
+  const routine = Object.values(levels).map((l) => {
+    const chosen = state.levelChoice[l.exercise] ?? l.level;
+    return {
+      exercise: l.exercise,
+      level: chosen,
+      prescription: L.EXERCISES[l.exercise].levels[chosen - 1],
+      proposed_level: l.level,
+      proposed_change: l.change,
+      reason: l.reason,
+      nurse: chosen === l.level ? 'accepted' : 'changed',
+    };
+  });
+  return {
+    app_version: APP_VERSION,
+    ...sessionBasics(),
+    date: new Date().toISOString().slice(0, 10),
+    created_at: new Date().toISOString(),
+    setup: { ...(state.session.setup ?? {}), source: state.source, model: state.modelKey, delegate: state.delegate },
+    tests: state.session.tests,
+    routine,
+    nurse_note: $('note').value.trim() || null,
+    perf: {
+      frames: p.frames,
+      avg_fps: Math.round(p.fps * 10) / 10,
+      mean_inference_ms: Math.round(L.mean(p.infer)),
+      p95_inference_ms: Math.round(L.percentile(p.infer, 95)),
+      pose_dropout_pct: p.frames ? Math.round((1 - p.poseFrames / p.frames) * 1000) / 10 : null,
+    },
+  };
+}
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const TREND = { better: ' ↑ better', worse: ' ↓ worse', same: ' = same' };
+const CHANGE = { up: '↑ up', down: '↓ down', same: '= same', start: 'start' };
+
+function renderReport() {
+  const basics = sessionBasics();
+  const session = { ...basics, tests: state.session.tests };
+  const rows = L.reportRows(session, state.previous);
+  const box = $('report');
+  if (!rows.length) {
+    box.innerHTML = '<p class="muted">No test done yet.</p>';
+    $('jsonOut').textContent = JSON.stringify(exportSession(), null, 2);
+    return;
+  }
+  const flagClass = (f) => (f === 'ok' ? 'flag-ok' : f === 'check' ? 'flag-check' : 'flag-bad');
+  let html = `<p class="muted">${esc(basics.client)} · ${esc(basics.sex)}, ${esc(basics.age_band)} · ${new Date().toLocaleDateString()}</p>`;
+  html += '<table><tr><th>Test</th><th>Today</th><th>Last visit</th><th>Reference</th><th>Flag</th></tr>';
+  for (const r of rows) {
+    html += `<tr><td>${esc(r.test)}</td><td>${esc(r.today)}</td><td>${esc(r.last)}</td><td>${esc(r.reference)}</td><td class="${flagClass(r.flag)}">${esc(r.flag)}${r.trend ? esc(TREND[r.trend]) : ''}</td></tr>`;
+  }
+  html += '</table>';
+
+  const chair = state.session.tests.chair_stand_30s;
+  if (chair) {
+    html += `<label class="check"><input type="checkbox" id="armsUsed" ${chair.armsUsedConfirmed ? 'checked' : ''}/> Arms were used in the chair stand (CDC scores 0)${chair.armsUsedSuspected ? ' · the camera saw the wrists leave the chest' : ''}</label>`;
+  }
+
+  const obs = L.observations(session);
+  if (obs.length) html += `<ul class="obs">${obs.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>`;
+
+  const levels = currentLevels();
+  html += '<h2 style="margin-top:14px">Proposed routine (nurse confirms)</h2><table><tr><th>Exercise</th><th>Level</th><th>Change</th></tr>';
+  for (const l of Object.values(levels)) {
+    const chosen = state.levelChoice[l.exercise] ?? l.level;
+    const opts = L.EXERCISES[l.exercise].levels.map((txt, i) => `<option value="${i + 1}" ${chosen === i + 1 ? 'selected' : ''}>${i + 1}: ${esc(txt)}</option>`).join('');
+    html += `<tr><td>${esc(l.name)}<div class="muted">${esc(l.reason)}</div></td><td><select data-level="${l.exercise}">${opts}</select></td><td>${esc(CHANGE[l.change] ?? l.change)}${chosen !== l.level ? '<div class="muted">changed by nurse</div>' : ''}</td></tr>`;
+  }
+  html += '</table>';
+  box.innerHTML = html;
+
+  $('armsUsed')?.addEventListener('change', (e) => {
+    state.session.tests.chair_stand_30s.armsUsedConfirmed = e.target.checked;
+    renderReport();
+  });
+  box.querySelectorAll('select[data-level]').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      state.levelChoice[sel.dataset.level] = Number(sel.value);
+      renderReport();
+    });
+  });
+  $('jsonOut').textContent = JSON.stringify(exportSession(), null, 2);
+}
+
+function download() {
+  const data = JSON.stringify(exportSession(), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  const b = sessionBasics();
+  a.href = URL.createObjectURL(blob);
+  a.download = `session_${b.client}_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+async function copyJson() {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(exportSession(), null, 2));
+    cue('Session JSON copied.');
+  } catch {
+    cue('Copy failed: open "Session JSON" below and copy by hand.');
+  }
+}
+
+async function loadPrevious(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data || typeof data !== 'object' || !data.tests) throw new Error('This file is not a session JSON from this app.');
+    state.previous = data;
+    state.levelChoice = {};
+    cue(`Last visit loaded (${data.date ?? 'no date'}).`);
+    renderReport();
+  } catch (e) {
+    cue(`Could not read that file: ${e.message}`);
+  }
+}
+
+// ------------------------------------------------------------ wiring
+for (const band of L.AGE_BANDS) $('age').add(new Option(band, band, band === '75-79', band === '75-79'));
+$('btnCamera').addEventListener('click', startCamera);
+$('btnFile').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) startFile(f); e.target.value = ''; });
+$('rate').addEventListener('change', () => { if (state.source === 'file') video.playbackRate = Number($('rate').value) || 1; });
+document.querySelectorAll('[data-test]').forEach((b) => b.addEventListener('click', () => selectTest(b.dataset.test)));
+$('btnStart').addEventListener('click', onStart);
+$('btnStop').addEventListener('click', abortTest);
+$('btnSeated').addEventListener('click', onSeated);
+$('btnDownload').addEventListener('click', download);
+$('btnCopy').addEventListener('click', copyJson);
+$('prevFile').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) loadPrevious(f); });
+for (const id of ['client', 'age', 'sex', 'note']) $(id).addEventListener('change', renderReport);
+video.addEventListener('ended', () => { if (state.source === 'file') { cue('Video ended.'); $('btnPlay').textContent = 'Play'; } });
+
+// Video-file controls: position the clip at the start of a test, pause, replay.
+$('btnPlay').addEventListener('click', async () => {
+  if (state.source !== 'file') return;
+  if (video.paused || video.ended) {
+    if (video.ended) video.currentTime = 0;
+    await video.play();
+    $('btnPlay').textContent = 'Pause';
+  } else {
+    video.pause();
+    $('btnPlay').textContent = 'Play';
+  }
+});
+video.addEventListener('loadedmetadata', () => { $('seek').max = String(video.duration || 1); });
+video.addEventListener('timeupdate', () => { if (state.source === 'file') $('seek').value = String(video.currentTime); });
+$('seek').addEventListener('input', (e) => { if (state.source === 'file') video.currentTime = Number(e.target.value); });
+// Jumping in the clip breaks the timeline: cancel a running test and restart the filters.
+video.addEventListener('seeking', () => {
+  if (state.source !== 'file') return;
+  if (state.test && ['countdown', 'running'].includes(state.test.phase)) abortTest();
+  state.smoother.reset();
+  state.gate.reset();
+});
+</script>
+</body>
+</html>

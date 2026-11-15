@@ -1,4 +1,4 @@
-"""End-to-end check of the web app in headless Chrome, with a video file as the fake camera.
+"""End-to-end check of the nurse version (nurse.html) in headless Chrome, with a video file as the fake camera.
 
 What it does
   1. Serves the app plus local copies of the MediaPipe library, WASM and model.
@@ -43,7 +43,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def build_site(app: Path, mp: Path, model: Path) -> Path:
     site = Path(tempfile.mkdtemp(prefix="e2e_site_"))
-    for name in ("index.html", "logic.js"):
+    for name in ("nurse.html", "logic.js"):
         shutil.copy(app / name, site / name)
     shutil.copy(mp / "vision_bundle.mjs", site / "vision_bundle.mjs")
     shutil.copytree(mp / "wasm", site / "wasm")
@@ -86,7 +86,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     site = build_site(Path(a.app), Path(a.mp), Path(a.model))
     httpd = serve(site, a.port)
-    url = (f"http://127.0.0.1:{a.port}/index.html?lib=./vision_bundle.mjs&wasm=./wasm"
+    url = (f"http://127.0.0.1:{a.port}/nurse.html?lib=./vision_bundle.mjs&wasm=./wasm"
            f"&model=./models/pose_landmarker_lite.task&delegate=CPU")
     report = {"console_errors": [], "page_errors": [], "steps": {}}
 

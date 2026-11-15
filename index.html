@@ -1,160 +1,154 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0f1216" />
+<meta name="theme-color" content="#f6f3ee" />
 <link rel="icon" href="data:," />
-<title>Strength &amp; Balance Check (MVP)</title>
+<title>Se lever de la chaise</title>
 <style>
   :root {
-    --bg: #0f1216; --panel: #161a20; --line: #2a313b; --text: #e9edf2; --muted: #98a3af;
-    --ok: #2fbf71; --warn: #f2b33d; --bad: #ef5b5b; --accent: #4c8dff;
+    --bg: #f6f3ee; --card: #ffffff; --ink: #1d1b18; --muted: #5f5a52; --line: #e3ddd3;
+    --accent: #1f5fd6; --ok: #1a7f4b; --warn: #a55f00;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-  header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0 8px 0 0; font-weight: 650; }
-  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: #232a33; color: var(--muted); white-space: nowrap; }
-  .chip.ok { background: rgba(47,191,113,.16); color: var(--ok); }
-  .chip.warn { background: rgba(242,179,61,.16); color: var(--warn); }
-  .chip.bad { background: rgba(239,91,91,.16); color: var(--bad); }
-  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); }
-  #stage { position: relative; background: #000; min-height: 240px; overflow: hidden; }
-  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-  .mirror { transform: scaleX(-1); }
-  #placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); padding: 24px; }
-  #hud { position: absolute; left: 14px; right: 14px; top: 10px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
-  #bigText { font-size: clamp(30px, 8vw, 72px); font-weight: 750; text-shadow: 0 2px 10px rgba(0,0,0,.8); line-height: 1.05; }
-  #hudRight { font-size: clamp(14px, 2.6vw, 20px); font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.8); text-align: right; }
-  #cue { position: absolute; left: 14px; right: 14px; bottom: 12px; font-size: clamp(16px, 3.2vw, 26px); font-weight: 650; text-shadow: 0 2px 8px rgba(0,0,0,.85); pointer-events: none; }
-  aside { border-left: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; min-height: 0; }
-  /* Phone held upright: video on top, controls below, the page scrolls. */
-  @media (max-width: 640px) {
-    body { height: auto; min-height: 100vh; }
-    main { display: block; }
-    #stage { height: 58vh; }
-    aside { border-left: 0; border-top: 1px solid var(--line); }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font: 20px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+
+  .page {
+    max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;
+    padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   }
-  .card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
-  label { display: block; font-size: 12.5px; color: var(--muted); margin: 6px 0 3px; }
-  input, select, textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: #0f1216; color: var(--text); font-size: 15px; font-family: inherit; }
-  .row { display: flex; gap: 8px; } .row > * { flex: 1; min-width: 0; }
-  .check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
-  .check input { width: auto; }
-  button { appearance: none; border: 1px solid var(--line); background: #232a33; color: var(--text); padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: 650; cursor: pointer; font-family: inherit; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
-  button.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  .stack { display: grid; gap: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; }
-  .flag-bad { color: var(--bad); font-weight: 650; } .flag-ok { color: var(--ok); } .flag-check { color: var(--warn); font-weight: 650; }
-  .muted { color: var(--muted); font-size: 12.5px; }
-  ul.obs { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
-  pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; background: #0b0e12; padding: 8px; border-radius: 8px; max-height: 240px; overflow: auto; }
-  .hidden { display: none !important; }
-  td select { padding: 4px; font-size: 13px; }
+  h1 { font-size: clamp(34px, 7.5vw, 54px); line-height: 1.1; margin: 8px 0 0; }
+  .lead { font-size: clamp(20px, 4.4vw, 26px); color: var(--muted); margin: 0; }
+  .langs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .lang { border: 2px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 16px; font-size: 18px; cursor: pointer; }
+  .lang[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 650; }
+  .steps { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 12px; width: 100%; text-align: left; }
+  .steps li { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px; font-size: clamp(19px, 4vw, 23px); }
+  .steps .n { flex: 0 0 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 19px; margin-top: 1px; }
+  .big { width: 100%; max-width: 460px; min-height: 80px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font-size: clamp(26px, 5.5vw, 32px); font-weight: 700; cursor: pointer; }
+  .big:active { transform: scale(.98); }
+  .note { font-size: 17px; color: var(--muted); margin: 0; }
+  .error { color: #b3261e; font-size: 19px; margin: 0; }
+
+  details.team { width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; font-size: 16px; }
+  details.team summary { cursor: pointer; color: var(--muted); font-size: 16px; }
+  details.team label { display: block; color: var(--muted); margin: 10px 0 4px; font-size: 15px; }
+  details.team input, details.team select, details.team textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 17px; }
+  details.team .check { display: flex; gap: 10px; align-items: center; }
+  details.team .check input { width: 22px; height: 22px; }
+  details.team .row { display: flex; gap: 10px; } details.team .row > * { flex: 1; min-width: 0; }
+  details.team button { margin-top: 12px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line); background: #f1ede6; font-size: 16px; font-weight: 650; cursor: pointer; }
+  details.team .facts { margin: 8px 0 0; color: var(--ink); font-size: 15px; line-height: 1.6; }
+  details.team a { color: var(--accent); }
+
+  /* camera screen */
+  #camera { position: fixed; inset: 0; background: #000; overflow: hidden; }
+  #camera video, #camera canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .mirror { transform: scaleX(-1); }
+  #msg {
+    position: absolute; left: 0; right: 0; top: 0; z-index: 2; background: rgba(0,0,0,.66); color: #fff; text-align: center;
+    padding: max(18px, env(safe-area-inset-top)) 20px 18px; font-size: clamp(24px, 5.6vw, 42px); font-weight: 650; line-height: 1.25;
+  }
+  #msg.ok { background: rgba(26,127,75,.85); }
+  #count { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: min(40vh, 44vw); text-shadow: 0 4px 32px rgba(0,0,0,.7); pointer-events: none; }
+  #bottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 20px max(18px, env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #stopBtn { min-height: 64px; padding: 0 26px; border: 0; border-radius: 18px; background: rgba(255,255,255,.94); color: #1d1b18; font-size: 22px; font-weight: 700; cursor: pointer; }
+  #timeLeft { color: #fff; font-size: clamp(26px, 6vw, 44px); font-weight: 800; text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; z-index: 3; background: rgba(255,255,255,.18); }
+  #barFill { height: 100%; width: 0; background: #34c759; transition: width .2s linear; }
+  #debug { position: absolute; right: 8px; top: 50%; z-index: 3; color: #fff; font: 13px/1.3 ui-monospace, monospace; background: rgba(0,0,0,.5); padding: 4px 6px; border-radius: 6px; }
+
+  /* result screen */
+  .resultNumber { font-size: clamp(110px, 30vw, 180px); font-weight: 800; line-height: 1; color: var(--accent); margin-top: 8px; }
+  .card { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; text-align: left; }
+  .card .label { color: var(--muted); font-size: 18px; margin: 0 0 6px; }
+  .card .ex { font-size: clamp(22px, 4.8vw, 28px); font-weight: 650; margin: 0; }
+  .tip { background: #fff6e6; border: 1px solid #f2d9a8; color: #6b4300; border-radius: 16px; padding: 12px 16px; font-size: 19px; width: 100%; text-align: left; margin: 0; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Strength &amp; Balance Check <span class="muted">MVP 0.1</span></h1>
-  <span id="chipModel" class="chip">model: not loaded</span>
-  <span id="chipFraming" class="chip">framing: –</span>
-  <span id="chipLight" class="chip hidden">light</span>
-  <span id="chipFps" class="chip">– fps</span>
-  <span id="chipConf" class="chip">conf –</span>
-</header>
 
-<main>
-  <div id="stage">
-    <video id="video" playsinline muted autoplay></video>
-    <canvas id="overlay"></canvas>
-    <div id="placeholder">Start the camera or load a video.<br />Phone in landscape on a tripod, hip height, 3.5 to 4 m away, whole body in view.</div>
-    <div id="hud"><div id="bigText"></div><div id="hudRight"></div></div>
-    <div id="cue"></div>
+<!-- 1. Start -->
+<section id="start" class="page">
+  <div class="langs" role="group" aria-label="Langue / Language">
+    <button class="lang" data-lang="fr">Français</button>
+    <button class="lang" data-lang="de">Deutsch</button>
+    <button class="lang" data-lang="it">Italiano</button>
+    <button class="lang" data-lang="en">English</button>
+    <button class="lang" data-lang="es">Español</button>
   </div>
+  <h1 data-t="title"></h1>
+  <p class="lead" data-t="subtitle"></p>
+  <ol class="steps">
+    <li><span class="n">1</span><span data-t="step1"></span></li>
+    <li><span class="n">2</span><span data-t="step2"></span></li>
+    <li><span class="n">3</span><span data-t="step3"></span></li>
+  </ol>
+  <button id="startBtn" class="big" data-t="start"></button>
+  <p id="startError" class="error" hidden></p>
+  <p class="note" data-t="privacy"></p>
 
-  <aside>
-    <section class="card">
-      <h2>1 · Setup</h2>
-      <div class="row">
-        <div><label for="client">Client code</label><input id="client" value="C-001" maxlength="20" autocomplete="off" /></div>
-        <div><label for="age">Age</label><select id="age"></select></div>
-        <div><label for="sex">Sex</label><select id="sex"><option value="F">F</option><option value="M">M</option></select></div>
-      </div>
-      <div class="row">
-        <div><label for="lang">Voice</label><select id="lang"><option value="fr">Français</option><option value="de">Deutsch</option><option value="en">English</option></select></div>
-        <div><label for="cam">Camera</label><select id="cam"><option value="environment">Back</option><option value="user">Front</option></select></div>
-        <div><label for="model">Model</label><select id="model"><option value="lite">Lite</option><option value="full">Full</option></select></div>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button id="btnCamera" class="primary">Start camera</button>
-        <button id="btnFile">Use a video file</button>
-      </div>
-      <input id="fileInput" type="file" accept="video/*" class="hidden" />
-      <div id="fileControls" class="hidden">
-        <div class="row" style="margin-top:8px; align-items:center">
-          <button id="btnPlay" style="flex:0 0 auto">Pause</button>
-          <input id="seek" type="range" min="0" max="1" step="0.05" value="0" aria-label="Position in the video" />
-        </div>
-        <div class="row">
-          <div><label for="rate">Video speed</label><select id="rate"><option value="1">1× (real time)</option><option value="0.5">0.5× (slow phones)</option></select></div>
-        </div>
-      </div>
-      <label class="check"><input type="checkbox" id="readAloud" checked /> Read instructions aloud</label>
-      <p id="setupMsg" class="muted"></p>
-    </section>
+  <details class="team">
+    <summary>For the team</summary>
+    <div class="row">
+      <div><label for="age">Age band</label><select id="age"></select></div>
+      <div><label for="sex">Sex</label><select id="sex"><option value="F">F</option><option value="M">M</option></select></div>
+      <div><label for="cam">Camera</label><select id="cam"><option value="user">Front</option><option value="environment">Back</option></select></div>
+    </div>
+    <p class="facts" id="sessionsInfo"></p>
+    <button id="exportBtn" type="button">Export results (CSV)</button>
+    <p class="facts">Full nurse version (3 tests and report): <a href="./nurse.html">nurse.html</a></p>
+  </details>
+</section>
 
-    <section class="card">
-      <h2>2 · Tests</h2>
-      <div class="stack">
-        <button data-test="tug">Timed Up and Go</button>
-        <button data-test="chair">30-second chair stand</button>
-        <button data-test="balance">4-stage balance</button>
-      </div>
-      <div id="testPanel" class="hidden" style="margin-top:12px">
-        <p id="testInstructions" style="margin:0 0 10px"></p>
-        <div class="stack">
-          <button id="btnStart" class="primary">Start</button>
-          <button id="btnSeated" class="hidden">Seated: stop the timer</button>
-          <button id="btnStop" class="danger hidden">Cancel test</button>
-        </div>
-        <label class="check"><input type="checkbox" id="override" /> Start even if framing is not OK</label>
-        <div id="stageLog" class="muted" style="margin-top:8px"></div>
-      </div>
-    </section>
+<!-- 2. Camera -->
+<section id="camera" hidden>
+  <video id="video" class="mirror" playsinline muted autoplay></video>
+  <canvas id="overlay" class="mirror"></canvas>
+  <div id="msg"></div>
+  <div id="count"></div>
+  <div id="bottom">
+    <button id="stopBtn" data-t="stop"></button>
+    <div id="timeLeft"></div>
+  </div>
+  <div id="bar"><div id="barFill"></div></div>
+  <div id="debug" hidden></div>
+</section>
 
-    <section class="card">
-      <h2>3 · Report</h2>
-      <div id="report"><p class="muted">No test done yet.</p></div>
-      <label for="prevFile">Last visit's session JSON (optional: adds "last visit" and adapts levels)</label>
-      <input id="prevFile" type="file" accept="application/json,.json" />
-      <label for="note">Nurse note</label>
-      <textarea id="note" rows="2" placeholder="Optional"></textarea>
-      <div class="row" style="margin-top:10px">
-        <button id="btnDownload">Download JSON</button>
-        <button id="btnCopy">Copy JSON</button>
-      </div>
-      <details style="margin-top:8px"><summary class="muted">Session JSON</summary><pre id="jsonOut"></pre></details>
-    </section>
-  </aside>
-</main>
+<!-- 3. Result -->
+<section id="result" class="page" hidden>
+  <div id="resNumber" class="resultNumber"></div>
+  <h1 id="resTitle"></h1>
+  <p id="resBravo" class="lead"></p>
+  <div id="resExercise" class="card">
+    <p class="label" data-t="nextTitle"></p>
+    <p class="ex" id="resNext"></p>
+  </div>
+  <p id="resTip" class="tip" hidden></p>
+  <button id="againBtn" class="big" data-t="again"></button>
+
+  <details class="team" id="teamNotes">
+    <summary>Team notes</summary>
+    <p class="facts" id="resFacts"></p>
+    <div class="row">
+      <div><label for="handCount">Hand count</label><input id="handCount" type="number" min="0" max="60" inputmode="numeric" /></div>
+      <div><label class="check" style="margin-top:34px"><input id="neededHelp" type="checkbox" /> Needed help to place the phone</label></div>
+    </div>
+    <label for="notes">Notes</label>
+    <textarea id="notes" rows="2" placeholder="Quotes, problems, ideas"></textarea>
+    <button id="saveBtn" type="button">Save</button>
+    <span id="saveMsg" class="facts"></span>
+  </details>
+</section>
 
 <script type="module">
 import * as L from './logic.js';
 
-const APP_VERSION = '0.1.0';
+// ------------------------------------------------------------ settings
 const MP_VERSION = '1.2.3';
-
-// ------------------------------------------------------------ configuration
-// Optional same-origin overrides (?lib=./x&wasm=./y&model=./z&delegate=CPU) for
-// offline use and automated tests. Only relative paths are accepted.
 const params = new URLSearchParams(location.search);
 const local = (k) => {
   const v = params.get(k);
@@ -162,719 +156,609 @@ const local = (k) => {
 };
 const LIB_URL = local('lib') ?? `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`;
 const WASM_URL = local('wasm') ?? `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
-const MODEL_URLS = {
-  lite: local('model') ?? 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-  full: local('modelFull') ?? 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
-};
+const MODEL_URL = local('model') ?? 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 const FORCE_CPU = params.get('delegate') === 'CPU';
+const DEBUG = params.get('debug') === '1';
+const SEATED_HOLD_MS = 1500; // seated and fully visible this long before the countdown starts
+const STORE_KEY = 'sit-to-stand-sessions';
 
 // ------------------------------------------------------------ words
-const VOICE = { en: 'en-GB', fr: 'fr-CH', de: 'de-CH' };
-const SAY = {
-  go: { en: 'Go', fr: 'Partez', de: 'Los' },
-  stop: { en: 'Stop', fr: 'Stop', de: 'Stopp' },
-  ready: { en: 'Ready, begin', fr: 'Prêt, partez', de: 'Bereit, los' },
-  chair: {
-    en: 'Sit in the middle of the chair, arms crossed on your chest. On go, stand up fully and sit down again, as many times as you can for thirty seconds.',
-    fr: 'Asseyez-vous au milieu de la chaise, bras croisés sur la poitrine. Au signal, levez-vous complètement et rasseyez-vous, autant de fois que possible pendant trente secondes.',
-    de: 'Setzen Sie sich in die Mitte des Stuhls, Arme vor der Brust gekreuzt. Auf Los ganz aufstehen und wieder hinsetzen, so oft Sie können, dreissig Sekunden lang.',
+const T = {
+  fr: {
+    title: 'Se lever de la chaise',
+    subtitle: 'Un petit test de 30 secondes pour vos jambes.',
+    step1: 'Une chaise solide sans accoudoirs, contre un mur. Quelqu’un reste à côté de vous.',
+    step2: 'Posez le téléphone debout, l’écran vers vous, à 2 ou 3 mètres et un peu sur le côté.',
+    step3: 'Appuyez sur Commencer, puis asseyez-vous. Le téléphone vous guide à voix haute.',
+    start: 'Commencer',
+    privacy: 'Rien n’est filmé ni envoyé : l’image reste sur ce téléphone.',
+    loading: 'Préparation de la caméra…',
+    no_person: 'Je ne vous vois pas encore.',
+    feet_hidden: 'Je ne vois pas vos pieds. Éloignez un peu le téléphone.',
+    body_hidden: 'Quelque chose vous cache. Dégagez la vue.',
+    at_edge: 'Mettez-vous au milieu de l’image.',
+    too_far: 'Rapprochez un peu le téléphone.',
+    sitDown: 'Parfait, je vous vois. Asseyez-vous au milieu de la chaise, les bras croisés sur la poitrine.',
+    ready: 'Levez-vous complètement, puis rasseyez-vous, autant de fois que possible.',
+    go: 'Partez !',
+    keepGoing: 'Continuez, à votre rythme !',
+    tenLeft: 'Encore dix secondes',
+    stopNow: 'Stop ! Vous pouvez vous reposer.',
+    stop: 'Arrêter',
+    resultTitle: (n) => `${n} fois debout en 30 secondes`,
+    bravo: 'Bravo, c’est fait !',
+    nextTitle: 'Votre exercice, 3 fois par semaine :',
+    levels: ['Se lever en s’aidant des deux mains, 5 fois de suite.', 'Se lever en s’aidant d’une main, 5 fois de suite.', 'Se lever sans les mains, 10 fois de suite.', 'Se lever sans les mains, 2 séries de 10.'],
+    armsTip: 'Astuce : gardez les bras croisés sur la poitrine pendant tout le test.',
+    notSeen: 'Je ne vous ai pas assez bien vu pour compter.',
+    notSeenSub: 'Vérifiez que tout votre corps est dans l’image, puis recommencez.',
+    again: 'Recommencer',
+    cameraError: 'La caméra ne s’ouvre pas. Autorisez la caméra dans le navigateur, puis réessayez.',
   },
-  tug: {
-    en: 'On go, stand up, walk to the mark at your normal pace, turn, walk back and sit down.',
-    fr: 'Au signal, levez-vous, marchez jusqu’au repère à votre rythme habituel, faites demi-tour, revenez et asseyez-vous.',
-    de: 'Auf Los aufstehen, in normalem Tempo bis zur Markierung gehen, umdrehen, zurückgehen und hinsetzen.',
+  de: {
+    title: 'Vom Stuhl aufstehen',
+    subtitle: 'Ein kurzer Test von 30 Sekunden für Ihre Beine.',
+    step1: 'Ein stabiler Stuhl ohne Armlehnen, an einer Wand. Jemand bleibt neben Ihnen.',
+    step2: 'Stellen Sie das Telefon hochkant auf, Bildschirm zu Ihnen, 2 bis 3 Meter entfernt und etwas seitlich.',
+    step3: 'Tippen Sie auf Starten und setzen Sie sich. Das Telefon führt Sie mit Sprache.',
+    start: 'Starten',
+    privacy: 'Nichts wird aufgenommen oder gesendet: Das Bild bleibt auf diesem Telefon.',
+    loading: 'Die Kamera wird vorbereitet…',
+    no_person: 'Ich sehe Sie noch nicht.',
+    feet_hidden: 'Ich sehe Ihre Füsse nicht. Stellen Sie das Telefon etwas weiter weg.',
+    body_hidden: 'Etwas verdeckt Sie. Machen Sie die Sicht frei.',
+    at_edge: 'Gehen Sie in die Bildmitte.',
+    too_far: 'Stellen Sie das Telefon etwas näher.',
+    sitDown: 'Perfekt, ich sehe Sie. Setzen Sie sich in die Mitte des Stuhls, die Arme vor der Brust gekreuzt.',
+    ready: 'Stehen Sie ganz auf und setzen Sie sich wieder hin, so oft Sie können.',
+    go: 'Los!',
+    keepGoing: 'Weiter so, in Ihrem Tempo!',
+    tenLeft: 'Noch zehn Sekunden',
+    stopNow: 'Stopp! Sie können sich ausruhen.',
+    stop: 'Abbrechen',
+    resultTitle: (n) => `${n}-mal aufgestanden in 30 Sekunden`,
+    bravo: 'Bravo, geschafft!',
+    nextTitle: 'Ihre Übung, 3-mal pro Woche:',
+    levels: ['Mit Hilfe beider Hände aufstehen, 5-mal hintereinander.', 'Mit Hilfe einer Hand aufstehen, 5-mal hintereinander.', 'Ohne Hände aufstehen, 10-mal hintereinander.', 'Ohne Hände aufstehen, 2 Serien zu 10.'],
+    armsTip: 'Tipp: Halten Sie die Arme während des ganzen Tests vor der Brust gekreuzt.',
+    notSeen: 'Ich konnte Sie nicht gut genug sehen, um zu zählen.',
+    notSeenSub: 'Prüfen Sie, ob Ihr ganzer Körper im Bild ist, und versuchen Sie es nochmals.',
+    again: 'Nochmals',
+    cameraError: 'Die Kamera startet nicht. Erlauben Sie die Kamera im Browser und versuchen Sie es erneut.',
   },
-  stages: [
-    { en: 'Feet side by side', fr: 'Pieds côte à côte', de: 'Füsse nebeneinander' },
-    { en: 'One foot slightly ahead, the instep touching the big toe', fr: 'Un pied légèrement devant, le milieu du pied contre le gros orteil', de: 'Ein Fuss leicht vorne, das Fussgewölbe an der Grosszehe' },
-    { en: 'One foot in front of the other, heel touching toe', fr: 'Un pied devant l’autre, le talon contre les orteils', de: 'Ein Fuss vor dem anderen, die Ferse an den Zehen' },
-    { en: 'Stand on one foot', fr: 'Tenez-vous sur un pied', de: 'Auf einem Bein stehen' },
-  ],
+  it: {
+    title: 'Alzarsi dalla sedia',
+    subtitle: 'Un breve test di 30 secondi per le gambe.',
+    step1: 'Una sedia stabile senza braccioli, contro un muro. Qualcuno resta accanto a lei.',
+    step2: 'Appoggi il telefono in verticale, con lo schermo verso di lei, a 2 o 3 metri e un po’ di lato.',
+    step3: 'Tocchi Inizia e si sieda. Il telefono la guida a voce.',
+    start: 'Inizia',
+    privacy: 'Niente viene registrato o inviato: l’immagine resta su questo telefono.',
+    loading: 'Preparazione della fotocamera…',
+    no_person: 'Non la vedo ancora.',
+    feet_hidden: 'Non vedo i piedi. Allontani un po’ il telefono.',
+    body_hidden: 'Qualcosa la copre. Liberi la vista.',
+    at_edge: 'Si metta al centro dell’immagine.',
+    too_far: 'Avvicini un po’ il telefono.',
+    sitDown: 'Perfetto, la vedo. Si sieda al centro della sedia, con le braccia incrociate sul petto.',
+    ready: 'Si alzi completamente e si risieda, quante più volte possibile.',
+    go: 'Via!',
+    keepGoing: 'Continui così, al suo ritmo!',
+    tenLeft: 'Ancora dieci secondi',
+    stopNow: 'Stop! Può riposarsi.',
+    stop: 'Interrompi',
+    resultTitle: (n) => `${n} volte in piedi in 30 secondi`,
+    bravo: 'Ottimo lavoro!',
+    nextTitle: 'Il suo esercizio, 3 volte a settimana:',
+    levels: ['Alzarsi aiutandosi con entrambe le mani, 5 volte di seguito.', 'Alzarsi aiutandosi con una mano, 5 volte di seguito.', 'Alzarsi senza mani, 10 volte di seguito.', 'Alzarsi senza mani, 2 serie da 10.'],
+    armsTip: 'Consiglio: tenga le braccia incrociate sul petto per tutto il test.',
+    notSeen: 'Non l’ho vista abbastanza bene per contare.',
+    notSeenSub: 'Controlli che tutto il corpo sia nell’immagine e riprovi.',
+    again: 'Ricomincia',
+    cameraError: 'La fotocamera non si apre. Consenta l’accesso alla fotocamera nel browser e riprovi.',
+  },
+  en: {
+    title: 'Sit to stand',
+    subtitle: 'A short 30-second test for your legs.',
+    step1: 'A sturdy chair without armrests, against a wall. Someone stays next to you.',
+    step2: 'Stand the phone upright, screen facing you, 2 to 3 metres away and a little to the side.',
+    step3: 'Tap Start, then sit down. The phone guides you out loud.',
+    start: 'Start',
+    privacy: 'Nothing is recorded or sent: the image stays on this phone.',
+    loading: 'Getting the camera ready…',
+    no_person: 'I can’t see you yet.',
+    feet_hidden: 'I can’t see your feet. Move the phone a bit further away.',
+    body_hidden: 'Something is in the way. Clear the view.',
+    at_edge: 'Move to the middle of the picture.',
+    too_far: 'Move the phone a bit closer.',
+    sitDown: 'Great, I can see you. Sit in the middle of the chair, arms crossed on your chest.',
+    ready: 'Stand up fully, then sit back down, as many times as you can.',
+    go: 'Go!',
+    keepGoing: 'Keep going, at your own pace!',
+    tenLeft: 'Ten more seconds',
+    stopNow: 'Stop! You can rest now.',
+    stop: 'Stop',
+    resultTitle: (n) => `${n} stands in 30 seconds`,
+    bravo: 'Well done!',
+    nextTitle: 'Your exercise, 3 times a week:',
+    levels: ['Stand up using both hands, 5 times in a row.', 'Stand up using one hand, 5 times in a row.', 'Stand up without your hands, 10 times in a row.', 'Stand up without your hands, 2 sets of 10.'],
+    armsTip: 'Tip: keep your arms crossed on your chest for the whole test.',
+    notSeen: 'I couldn’t see you well enough to count.',
+    notSeenSub: 'Check that your whole body is in the picture, then try again.',
+    again: 'Try again',
+    cameraError: 'The camera won’t open. Allow the camera in the browser, then try again.',
+  },
+  es: {
+    title: 'Levantarse de la silla',
+    subtitle: 'Una prueba corta de 30 segundos para sus piernas.',
+    step1: 'Una silla firme sin reposabrazos, contra la pared. Alguien se queda a su lado.',
+    step2: 'Ponga el teléfono de pie, con la pantalla hacia usted, a 2 o 3 metros y un poco de lado.',
+    step3: 'Pulse Empezar y siéntese. El teléfono le guía en voz alta.',
+    start: 'Empezar',
+    privacy: 'No se graba ni se envía nada: la imagen se queda en este teléfono.',
+    loading: 'Preparando la cámara…',
+    no_person: 'Todavía no le veo.',
+    feet_hidden: 'No veo sus pies. Aleje un poco el teléfono.',
+    body_hidden: 'Algo le tapa. Despeje la vista.',
+    at_edge: 'Póngase en el centro de la imagen.',
+    too_far: 'Acerque un poco el teléfono.',
+    sitDown: 'Perfecto, le veo. Siéntese en el centro de la silla, con los brazos cruzados sobre el pecho.',
+    ready: 'Levántese del todo y vuelva a sentarse, tantas veces como pueda.',
+    go: '¡Ya!',
+    keepGoing: '¡Siga así, a su ritmo!',
+    tenLeft: 'Diez segundos más',
+    stopNow: '¡Alto! Ya puede descansar.',
+    stop: 'Parar',
+    resultTitle: (n) => `${n} veces de pie en 30 segundos`,
+    bravo: '¡Muy bien, hecho!',
+    nextTitle: 'Su ejercicio, 3 veces por semana:',
+    levels: ['Levantarse ayudándose con las dos manos, 5 veces seguidas.', 'Levantarse ayudándose con una mano, 5 veces seguidas.', 'Levantarse sin las manos, 10 veces seguidas.', 'Levantarse sin las manos, 2 series de 10.'],
+    armsTip: 'Consejo: mantenga los brazos cruzados sobre el pecho durante toda la prueba.',
+    notSeen: 'No le he visto lo bastante bien para contar.',
+    notSeenSub: 'Compruebe que todo su cuerpo sale en la imagen y vuelva a intentarlo.',
+    again: 'Repetir',
+    cameraError: 'La cámara no se abre. Permita la cámara en el navegador y vuelva a intentarlo.',
+  },
 };
-const STAGE_NAMES = ['Feet side by side', 'Semi-tandem', 'Tandem', 'One leg'];
-const TESTS = {
-  tug: {
-    name: 'Timed Up and Go',
-    help: 'Chair at one end of a 3 m walkway, a mark on the floor at 3 m. Client seated, back against the chair. The timer starts on "Go" and stops when the client sits down again. Cut-off in the StoppSturz Spitex manual: 13.5 s.',
-  },
-  chair: {
-    name: '30-second chair stand',
-    help: 'Chair without armrests, against a wall. Client in the middle of the seat, arms crossed on the chest, feet flat. Stand next to the client. Counts full stands for 30 s from "Go" (CDC STEADI).',
-  },
-  balance: {
-    name: '4-stage balance',
-    help: 'Show each position first. Help the client into it; when steady, let go and tap Start. Feet must not move for 10 s; arms may move. Stay ready to catch. The test stops at the first stage failed (CDC STEADI).',
-  },
-};
+const VOICE = { fr: 'fr-CH', de: 'de-CH', it: 'it-CH', en: 'en-GB', es: 'es-ES' };
 
 // ------------------------------------------------------------ state
 const $ = (id) => document.getElementById(id);
 const video = $('video');
 const canvas = $('overlay');
 const ctx = canvas.getContext('2d');
-const lumCanvas = document.createElement('canvas');
-lumCanvas.width = 32;
-lumCanvas.height = 18;
-const lumCtx = lumCanvas.getContext('2d', { willReadFrequently: true });
-
-const state = {
-  mp: null, landmarker: null, modelKey: null, delegate: null,
-  source: null, stream: null, objectUrl: null, running: false,
-  lastTs: -1, lastVideoTime: -1,
-  smoother: new L.FeatureSmoother(),
-  gate: new L.FramingGate(),
-  framingOk: false, framingReason: 'no_person',
-  feat: null, lm: null, lum: null,
-  perf: { frames: 0, poseFrames: 0, infer: [], fps: 0, lastTs: null, startedAt: null },
-  test: null,
-  session: { tests: {} },
-  previous: null,
-  levelChoice: {},
+const store = {
+  get(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
 };
-window.__app = state; // for debugging and automated tests
 
-// ------------------------------------------------------------ helpers
-function setChip(id, text, cls = '') {
-  const el = $(id);
-  el.textContent = text;
-  el.className = 'chip' + (cls ? ' ' + cls : '');
+const app = {
+  lang: 'fr', mp: null, landmarker: null, delegate: null, stream: null, running: false,
+  phase: 'idle', // idle | loading | waiting | countdown | running | done
+  smoother: new L.FeatureSmoother(), gate: new L.FramingGate(),
+  feat: null, framingOk: false, framingReason: 'no_person',
+  seatedSince: null, lostSince: null, runner: null, lastCount: 0, tenSaid: false,
+  startTapAt: 0, setupS: null, result: null, saved: false,
+  lastTs: -1, lastVideoTime: -1, timers: [], wakeLock: null, spoken: { key: null, at: 0 },
+  perf: { frames: 0, poseFrames: 0, fps: 0, lastTs: null },
+};
+window.__app = app; // for debugging and automated tests
+
+const t = (key) => T[app.lang][key];
+
+// ------------------------------------------------------------ language
+function setLang(lang) {
+  app.lang = T[lang] ? lang : 'fr';
+  store.set('sit-to-stand-lang', app.lang);
+  document.documentElement.lang = app.lang;
+  document.title = t('title');
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll('.lang').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === app.lang)));
 }
-const bigText = (t) => { $('bigText').textContent = t; };
-const hudRight = (t) => { $('hudRight').textContent = t; };
-const cue = (t) => { $('cue').textContent = t; };
-const lang = () => $('lang').value;
 
-function speak(entry, onEnd) {
-  const text = typeof entry === 'string' ? entry : entry?.[lang()];
+function initialLang() {
+  const saved = store.get('sit-to-stand-lang', null);
+  if (saved && T[saved]) return saved;
+  const nav = (navigator.language || 'fr').slice(0, 2).toLowerCase();
+  return T[nav] ? nav : 'fr';
+}
+
+// ------------------------------------------------------------ voice
+function speak(text, onEnd) {
   let finished = false;
   const done = () => { if (!finished) { finished = true; onEnd?.(); } };
   try {
-    if (!text || !('speechSynthesis' in window)) return done();
+    if (!text || !('speechSynthesis' in window)) { if (onEnd) setTimeout(done, 1200); return; }
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = VOICE[lang()];
-    u.rate = 0.95;
+    u.lang = VOICE[app.lang];
+    u.rate = 0.92;
     u.onend = done;
     u.onerror = done;
     if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
     speechSynthesis.speak(u);
-    if (onEnd) setTimeout(done, 400 + text.length * 90); // fallback if onend never fires
+    if (onEnd) setTimeout(done, 800 + text.length * 85); // in case onend never fires
   } catch {
-    done();
+    if (onEnd) setTimeout(done, 1200);
   }
 }
 
-// Test clock: media time for a video file (exact replay), wall clock for the camera.
-const testNow = () => (state.source === 'file' ? video.currentTime * 1000 : performance.now());
-
-function errorText(e) {
-  if (!e) return 'Unknown error';
-  if (e.name === 'NotAllowedError') return 'Camera permission denied. Allow the camera in the browser settings and try again.';
-  if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') return 'No suitable camera found.';
-  if (e.name === 'NotReadableError') return 'The camera is used by another app.';
-  return e.message || String(e);
+// Say a guidance message once, and repeat it at most every 7 s while it stays the same.
+function guide(key, text = t(key), cls = '') {
+  $('msg').textContent = text;
+  $('msg').className = cls;
+  const now = performance.now();
+  if (app.spoken.key !== key || now - app.spoken.at > 7000) {
+    app.spoken = { key, at: now };
+    speak(text);
+  }
 }
 
-// ------------------------------------------------------------ model
-async function loadModel(key) {
-  if (state.landmarker && state.modelKey === key) return;
-  setChip('chipModel', 'model: loading…', 'warn');
-  if (!state.mp) state.mp = await import(LIB_URL);
-  const { FilesetResolver, PoseLandmarker } = state.mp;
+const later = (fn, ms) => { app.timers.push(setTimeout(fn, ms)); };
+const clearTimers = () => { app.timers.forEach(clearTimeout); app.timers = []; };
+
+// ------------------------------------------------------------ screens
+function show(id) {
+  for (const s of ['start', 'camera', 'result']) $(s).hidden = s !== id;
+  window.scrollTo(0, 0);
+}
+
+// ------------------------------------------------------------ model and camera
+async function loadModel() {
+  if (app.landmarker) return;
+  if (!app.mp) app.mp = await import(LIB_URL);
+  const { FilesetResolver, PoseLandmarker } = app.mp;
   const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
   const options = (delegate) => ({
-    baseOptions: { modelAssetPath: MODEL_URLS[key], delegate },
-    runningMode: 'VIDEO',
-    numPoses: 1,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    baseOptions: { modelAssetPath: MODEL_URL, delegate },
+    runningMode: 'VIDEO', numPoses: 1,
+    minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
   });
   let delegate = FORCE_CPU ? 'CPU' : 'GPU';
-  let landmarker;
   try {
-    landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
+    app.landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
   } catch (err) {
     if (delegate !== 'GPU') throw err;
-    console.warn('GPU delegate failed, using CPU', err);
     delegate = 'CPU';
-    landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
+    app.landmarker = await PoseLandmarker.createFromOptions(fileset, options(delegate));
   }
-  try { state.landmarker?.close(); } catch {}
-  Object.assign(state, { landmarker, modelKey: key, delegate, lastTs: -1 });
-  setChip('chipModel', `model: ${key} · ${delegate}`, 'ok');
+  app.delegate = delegate;
 }
 
-// ------------------------------------------------------------ sources
-function stopSource() {
-  state.running = false;
-  abortTest();
-  if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
-  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-  Object.assign(state, { stream: null, objectUrl: null, source: null });
-  video.pause();
-  video.removeAttribute('src');
-  video.srcObject = null;
-  $('fileControls').classList.add('hidden');
-}
-
-function setMirror(on) {
-  video.classList.toggle('mirror', on);
-  canvas.classList.toggle('mirror', on);
-}
-
-async function startCamera() {
-  speak(' ');
-  $('setupMsg').textContent = '';
+async function start() {
+  speak(t('loading')); // first words inside the tap: unlocks speech on iPhone
+  $('startError').hidden = true;
+  app.startTapAt = performance.now();
+  Object.assign(app, { phase: 'loading', result: null, saved: false, setupS: null, seatedSince: null, lostSince: null, runner: null, lastCount: 0, tenSaid: false, spoken: { key: null, at: 0 } });
+  $('count').textContent = '';
+  $('timeLeft').textContent = '';
+  $('barFill').style.width = '0';
+  $('msg').className = '';
+  $('msg').textContent = t('loading');
+  show('camera');
   try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera needs a secure page: open the app over https:// (or localhost).');
-    stopSource();
-    $('setupMsg').textContent = 'Loading the pose model…';
-    await loadModel($('model').value);
-    $('setupMsg').textContent = 'Starting the camera…';
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('This page needs https:// for the camera.');
+    await loadModel();
     const facing = $('cam').value;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-    });
-    state.stream = stream;
-    state.source = 'camera';
-    video.srcObject = stream;
-    video.muted = true;
+    app.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+    video.srcObject = app.stream;
     await video.play();
-    setMirror(facing === 'user');
-    begin();
-    $('setupMsg').textContent = '';
+    video.classList.toggle('mirror', facing === 'user');
+    canvas.classList.toggle('mirror', facing === 'user');
+    try { app.wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+    app.smoother.reset();
+    app.gate.reset();
+    app.lastVideoTime = -1;
+    app.perf = { frames: 0, poseFrames: 0, fps: 0, lastTs: null };
+    app.running = true;
+    app.phase = 'waiting';
+    scheduleNext();
   } catch (e) {
     console.error(e);
-    $('setupMsg').textContent = errorText(e);
-    setChip('chipModel', state.landmarker ? `model: ${state.modelKey} · ${state.delegate}` : 'model: error', state.landmarker ? 'ok' : 'bad');
+    stopCamera();
+    show('start');
+    $('startError').textContent = `${t('cameraError')} (${e.name || 'Error'})`;
+    $('startError').hidden = false;
   }
 }
 
-async function startFile(file) {
-  $('setupMsg').textContent = '';
-  try {
-    stopSource();
-    $('setupMsg').textContent = 'Loading the pose model…';
-    await loadModel($('model').value);
-    state.objectUrl = URL.createObjectURL(file);
-    video.srcObject = null;
-    video.src = state.objectUrl;
-    video.muted = true;
-    video.playbackRate = Number($('rate').value) || 1;
-    state.source = 'file';
-    await video.play();
-    setMirror(false);
-    $('fileControls').classList.remove('hidden');
-    $('btnPlay').textContent = 'Pause';
-    begin();
-    $('setupMsg').textContent = `Playing ${file.name}. Select a test and tap Start at the right moment in the video.`;
-  } catch (e) {
-    console.error(e);
-    $('setupMsg').textContent = errorText(e);
-  }
+function stopCamera() {
+  app.running = false;
+  clearTimers();
+  if (app.stream) app.stream.getTracks().forEach((tr) => tr.stop());
+  app.stream = null;
+  video.srcObject = null;
+  try { app.wakeLock?.release(); } catch {}
+  app.wakeLock = null;
 }
 
-function begin() {
-  $('placeholder').classList.add('hidden');
-  state.smoother.reset();
-  state.gate.reset();
-  state.lastVideoTime = -1;
-  state.perf = { frames: 0, poseFrames: 0, infer: [], fps: 0, lastTs: null, startedAt: performance.now() };
-  state.running = true;
-  scheduleNext();
+function cancel() {
+  try { speechSynthesis.cancel(); } catch {}
+  stopCamera();
+  app.phase = 'idle';
+  show('start');
 }
 
 const hasRVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 function scheduleNext() {
-  if (!state.running) return;
+  if (!app.running) return;
   if (hasRVFC) video.requestVideoFrameCallback((now, meta) => onFrame(meta));
   else requestAnimationFrame(() => onFrame(null));
 }
 
 function onFrame(meta) {
-  if (!state.running) return;
-  try {
-    processFrame(meta);
-  } catch (e) {
-    console.error(e);
-    cue('Error: ' + (e.message || e));
-  }
+  if (!app.running) return;
+  try { processFrame(meta); } catch (e) { console.error(e); }
   scheduleNext();
 }
 
-// ------------------------------------------------------------ per frame
+// ------------------------------------------------------------ every frame
 function processFrame(meta) {
-  if (!state.landmarker || video.readyState < 2 || !video.videoWidth) return;
-  const vt = video.currentTime;
-  if (!meta && vt === state.lastVideoTime) return; // no new frame yet
-  state.lastVideoTime = vt;
-
+  if (!app.landmarker || video.readyState < 2 || !video.videoWidth) return;
+  if (!meta && video.currentTime === app.lastVideoTime) return;
+  app.lastVideoTime = video.currentTime;
   if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
   }
-
   let ts = performance.now();
-  if (ts <= state.lastTs) ts = state.lastTs + 1;
-  state.lastTs = ts;
-  const t0 = performance.now();
-  const res = state.landmarker.detectForVideo(video, ts);
-  const inferMs = performance.now() - t0;
+  if (ts <= app.lastTs) ts = app.lastTs + 1;
+  app.lastTs = ts;
 
-  const tTest = state.source === 'file' ? (meta?.mediaTime ?? vt) * 1000 : ts;
+  const res = app.landmarker.detectForVideo(video, ts);
   const lm = res?.landmarks?.[0] ?? null;
   const wlm = res?.worldLandmarks?.[0] ?? null;
-  const aspect = video.videoWidth / video.videoHeight;
-  const raw = lm ? L.extractFeatures(lm, wlm, aspect) : { ok: false, visibility: 0 };
-  const feat = state.smoother.smooth(raw, tTest);
+  const raw = lm ? L.extractFeatures(lm, wlm, video.videoWidth / video.videoHeight) : { ok: false, visibility: 0 };
+  const feat = app.smoother.smooth(raw, ts);
   const framing = L.framingCheck(lm);
-  state.framingOk = state.gate.update(framing.ok, tTest);
-  state.framingReason = framing.reason;
-  state.lm = lm;
-  state.feat = feat;
+  app.framingOk = app.gate.update(framing.ok, ts);
+  app.framingReason = framing.reason;
+  app.feat = feat;
 
-  // performance numbers
-  const p = state.perf;
+  const p = app.perf;
   p.frames++;
   if (lm) p.poseFrames++;
-  p.infer.push(inferMs);
-  if (p.infer.length > 600) p.infer.shift();
-  if (p.lastTs !== null) {
-    const inst = 1000 / Math.max(1, ts - p.lastTs);
-    p.fps = p.fps ? p.fps * 0.9 + inst * 0.1 : inst;
-  }
+  if (p.lastTs !== null) p.fps = p.fps ? p.fps * 0.9 + (1000 / Math.max(1, ts - p.lastTs)) * 0.1 : 1000 / Math.max(1, ts - p.lastTs);
   p.lastTs = ts;
-  if (p.frames % 20 === 1) measureLight();
-
-  draw(lm, feat);
-  updateChips(feat, framing);
-  stepTest(feat, tTest);
-}
-
-function measureLight() {
-  try {
-    lumCtx.drawImage(video, 0, 0, 32, 18);
-    const d = lumCtx.getImageData(0, 0, 32, 18).data;
-    let sum = 0;
-    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-    state.lum = Math.round(sum / (d.length / 4));
-  } catch {
-    state.lum = null;
+  if (DEBUG) {
+    $('debug').hidden = false;
+    $('debug').textContent = `${Math.round(p.fps)} fps · ${app.delegate}\nknee ${feat?.kneeAngle ? Math.round(feat.kneeAngle) : '–'}° · ${framing.reason}`;
   }
+
+  draw(lm);
+  step(feat, framing, ts);
 }
 
-function updateChips(feat, framing) {
-  const p = state.perf;
-  setChip('chipFps', `${Math.round(p.fps)} fps · ${Math.round(L.mean(p.infer.slice(-30)) || 0)} ms`, p.fps >= 15 ? 'ok' : p.fps >= 10 ? 'warn' : 'bad');
-  const conf = feat?.visibility ? Math.round(feat.visibility * 100) : 0;
-  setChip('chipConf', `conf ${conf}%`, conf >= 80 ? 'ok' : conf >= 50 ? 'warn' : 'bad');
-  if (framing.ok) setChip('chipFraming', state.framingOk ? L.FRAMING_MESSAGES.ok : 'Hold still…', state.framingOk ? 'ok' : 'warn');
-  else setChip('chipFraming', L.FRAMING_MESSAGES[framing.reason], 'bad');
-  const lightChip = $('chipLight');
-  if (state.lum !== null && state.lum < 45) {
-    lightChip.className = 'chip warn';
-    lightChip.textContent = 'Too dark: turn on a light';
-  } else {
-    lightChip.className = 'chip hidden';
-  }
-}
-
-function draw(lm, feat) {
+function draw(lm) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!lm || !state.mp) return;
+  if (!lm || !app.mp) return;
   const W = canvas.width, H = canvas.height;
-  ctx.lineWidth = Math.max(2, W / 300);
-  ctx.strokeStyle = state.framingOk ? '#2fbf71' : '#f2b33d';
-  for (const { start, end } of state.mp.PoseLandmarker.POSE_CONNECTIONS) {
+  ctx.lineWidth = Math.max(3, W / 260);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = app.framingOk ? 'rgba(52,199,89,.85)' : 'rgba(255,255,255,.6)';
+  for (const { start, end } of app.mp.PoseLandmarker.POSE_CONNECTIONS) {
     const a = lm[start], b = lm[end];
-    if ((a.visibility ?? 1) < 0.3 || (b.visibility ?? 1) < 0.3) continue;
+    if (start < 11 || end < 11) continue; // skip the face
+    if ((a.visibility ?? 1) < 0.4 || (b.visibility ?? 1) < 0.4) continue;
     ctx.beginPath();
     ctx.moveTo(a.x * W, a.y * H);
     ctx.lineTo(b.x * W, b.y * H);
     ctx.stroke();
   }
-  const r = Math.max(3, W / 220);
-  for (let i = 11; i < 33; i++) {
-    const p = lm[i];
-    ctx.fillStyle = (p.visibility ?? 1) >= 0.5 ? '#ffffff' : 'rgba(255,255,255,.35)';
-    ctx.beginPath();
-    ctx.arc(p.x * W, p.y * H, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  if (feat?.ok && Number.isFinite(feat.kneeAngle)) {
-    const k = (lm[25].visibility ?? 0) >= (lm[26].visibility ?? 0) ? lm[25] : lm[26];
-    label(`${Math.round(feat.kneeAngle)}°`, k.x * W + 2.5 * r, k.y * H);
-  }
 }
 
-function label(text, x, y) {
-  const mirrored = canvas.classList.contains('mirror');
-  ctx.save();
-  ctx.font = `600 ${Math.max(14, canvas.width / 45)}px system-ui, sans-serif`;
-  ctx.textBaseline = 'middle';
-  if (mirrored) {
-    ctx.scale(-1, 1);
-    x = -x;
-  }
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(0,0,0,.75)';
-  ctx.strokeText(text, x, y);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(text, x, y);
-  ctx.restore();
-}
+// ------------------------------------------------------------ the flow
+function step(feat, framing, now) {
+  const c = L.CONFIG.chairStand;
 
-// ------------------------------------------------------------ tests
-function selectTest(kind) {
-  if (state.test && ['countdown', 'running'].includes(state.test.phase)) return;
-  state.test = { kind, phase: 'ready', runner: kind === 'balance' ? new L.BalanceTest() : null, timers: [] };
-  document.querySelectorAll('[data-test]').forEach((b) => b.classList.toggle('selected', b.dataset.test === kind));
-  $('testPanel').classList.remove('hidden');
-  $('testInstructions').textContent = TESTS[kind].help;
-  $('stageLog').textContent = '';
-  bigText('');
-  hudRight(TESTS[kind].name);
-  cue('');
-  renderTestButtons();
-}
-
-function renderTestButtons() {
-  const T = state.test;
-  const busy = T && ['countdown', 'running'].includes(T.phase);
-  $('btnStart').classList.toggle('hidden', !T || busy || T.phase === 'done');
-  $('btnStop').classList.toggle('hidden', !busy);
-  $('btnSeated').classList.toggle('hidden', !(busy && T.kind === 'tug' && T.phase === 'running'));
-  document.querySelectorAll('[data-test]').forEach((b) => { b.disabled = !!busy; });
-  if (T?.kind === 'balance' && !busy && T.phase !== 'done') {
-    const i = T.runner.nextStage;
-    $('btnStart').textContent = i === null ? 'Done' : `Start stage ${i + 1}: ${STAGE_NAMES[i]}`;
-  } else {
-    $('btnStart').textContent = T?.phase === 'done' ? 'Done' : 'Start';
-  }
-}
-
-function onStart() {
-  const T = state.test;
-  if (!T) return;
-  if (!state.running) return cue('Start the camera or a video first.');
-  if (!state.framingOk && !$('override').checked) {
-    return cue(`Framing not OK: ${L.FRAMING_MESSAGES[state.framingReason] ?? state.framingReason}`);
-  }
-  cue('');
-  const live = state.source === 'camera';
-  const readAloud = live && $('readAloud').checked;
-
-  if (T.kind === 'balance') {
-    const i = T.runner.nextStage;
-    if (i === null) return;
-    T.phase = 'running';
-    if (live) speak(SAY.ready);
-    T.runner.startStage(testNow());
-    hudRight(`Stage ${i + 1}: ${STAGE_NAMES[i]}`);
-    renderTestButtons();
+  if (app.phase === 'waiting') {
+    if (!framing.ok) {
+      app.seatedSince = null;
+      guide(framing.reason);
+      return;
+    }
+    const seated = feat?.ok && feat.kneeAngle <= c.sitBelowDeg;
+    if (!seated || !app.framingOk) {
+      app.seatedSince = null;
+      guide('sitDown', t('sitDown'), 'ok');
+      return;
+    }
+    if (app.seatedSince === null) app.seatedSince = now;
+    if (now - app.seatedSince >= SEATED_HOLD_MS) startCountdown();
     return;
   }
 
-  T.runner = T.kind === 'chair' ? new L.ChairStandTest() : new L.TugTest();
-  T.phase = 'countdown';
-  renderTestButtons();
-  const go = () => {
-    if (state.test !== T || T.phase !== 'countdown') return;
-    T.phase = 'running';
-    T.runner.start(testNow());
-    renderTestButtons();
-  };
-  if (!live) return go(); // video file: start at the current frame, no countdown
-  const countdown = () => {
+  if (app.phase === 'countdown') {
+    // Person left the picture for more than 1.5 s: wait again.
+    if (!feat?.ok) {
+      if (app.lostSince === null) app.lostSince = now;
+      if (now - app.lostSince > 1500) {
+        clearTimers();
+        $('count').textContent = '';
+        app.phase = 'waiting';
+        app.seatedSince = null;
+      }
+    } else {
+      app.lostSince = null;
+    }
+    return;
+  }
+
+  if (app.phase === 'running') {
+    const r = app.runner.update(feat, now);
+    const elapsed = (now - app.runner.t0) / 1000;
+    const left = Math.max(0, 30 - elapsed);
+    if (app.runner.count !== app.lastCount) {
+      app.lastCount = app.runner.count;
+      speak(String(app.runner.count));
+    }
+    if (!app.tenSaid && left <= 10) {
+      app.tenSaid = true;
+      later(() => speak(t('tenLeft')), 700);
+    }
+    $('count').textContent = String(app.runner.count);
+    $('timeLeft').textContent = `${Math.ceil(left)} s`;
+    $('barFill').style.width = `${Math.min(100, (elapsed / 30) * 100)}%`;
+    if (r) finish(r);
+  }
+}
+
+function startCountdown() {
+  app.phase = 'countdown';
+  app.lostSince = null;
+  app.setupS = Math.round((performance.now() - app.startTapAt) / 1000);
+  $('msg').className = 'ok';
+  $('msg').textContent = t('ready');
+  speak(t('ready'), () => {
     let n = 3;
     const tick = () => {
-      if (state.test !== T || T.phase !== 'countdown') return;
+      if (app.phase !== 'countdown') return;
       if (n > 0) {
-        bigText(String(n));
+        $('count').textContent = String(n);
         speak(String(n));
         n--;
-        T.timers.push(setTimeout(tick, 1000));
+        later(tick, 1000);
       } else {
-        bigText(SAY.go[lang()]);
-        speak(SAY.go);
-        go();
+        $('count').textContent = '0';
+        $('msg').textContent = t('go');
+        speak(t('go'));
+        beginTest();
       }
     };
-    tick();
-  };
-  if (readAloud) {
-    cue(SAY[T.kind][lang()]);
-    speak(SAY[T.kind], () => T.timers.push(setTimeout(countdown, 600)));
-  } else {
-    countdown();
+    later(tick, 400);
+  });
+}
+
+function beginTest() {
+  app.runner = new L.ChairStandTest();
+  app.runner.start(performance.now());
+  app.lastCount = 0;
+  app.tenSaid = false;
+  app.phase = 'running';
+  later(() => { if (app.phase === 'running') $('msg').textContent = t('keepGoing'); }, 2000);
+}
+
+function finish(result) {
+  app.phase = 'done';
+  app.result = result;
+  $('timeLeft').textContent = '0 s';
+  $('barFill').style.width = '100%';
+  $('msg').textContent = t('stopNow');
+  speak(t('stopNow'));
+  later(() => {
+    stopCamera();
+    showResult();
+  }, 1800);
+}
+
+function showResult() {
+  const r = app.result;
+  const ok = r.reliable;
+  $('resNumber').textContent = ok ? String(r.stands) : '?';
+  $('resTitle').textContent = ok ? t('resultTitle')(r.stands) : t('notSeen');
+  $('resBravo').textContent = ok ? t('bravo') : t('notSeenSub');
+  $('resExercise').hidden = !ok;
+  $('resTip').hidden = !(ok && r.armsUsedSuspected);
+  $('resTip').textContent = t('armsTip');
+  if (ok) {
+    const level = levelFor(r);
+    $('resNext').textContent = t('levels')[level - 1];
   }
+  $('handCount').value = '';
+  $('neededHelp').checked = false;
+  $('notes').value = '';
+  $('saveMsg').textContent = '';
+  $('teamNotes').open = false;
+  $('resFacts').innerHTML = factsHtml(r);
+  show('result');
+  speak(ok ? `${t('resultTitle')(r.stands)}. ${t('bravo')}` : t('notSeen'));
 }
 
-function abortTest() {
-  const T = state.test;
-  if (!T) return;
-  T.timers.forEach(clearTimeout);
-  T.timers = [];
-  try { speechSynthesis.cancel(); } catch {}
-  if (['countdown', 'running'].includes(T.phase)) {
-    if (T.kind === 'balance' && T.runner) T.runner.current = null;
-    T.phase = 'ready';
-    if (T.kind !== 'balance') T.runner = null;
-    bigText('');
-    cue('Test cancelled.');
-  }
-  renderTestButtons();
+function levelFor(r) {
+  return L.targetLevels({ chair: r, ageBand: $('age').value, sex: $('sex').value }).sit_to_stand ?? 1;
 }
 
-function stepTest(feat, t) {
-  const T = state.test;
-  if (!T || T.phase !== 'running') return;
+// ------------------------------------------------------------ team notes
+const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 
-  if (T.kind === 'chair') {
-    const r = T.runner.update(feat, t);
-    const left = Math.max(0, 30 - (t - T.runner.t0) / 1000);
-    bigText(String(T.runner.count));
-    hudRight(`${Math.ceil(left)} s left`);
-    if (r) {
-      if (state.source === 'camera') speak(SAY.stop);
-      saveResult('chair_stand_30s', { ...r, armsUsedConfirmed: false });
-      finishTest(`${r.stands} stands${r.reliable ? '' : ' (tracking too weak: not measured)'}`);
-    }
-  } else if (T.kind === 'tug') {
-    const r = T.runner.update(feat, t);
-    bigText(`${((t - T.runner.t0) / 1000).toFixed(1)} s`);
-    hudRight(T.runner.phase === 'seated' ? 'Waiting to stand up' : T.runner.walked ? 'Walking back, sitting down' : 'Walking');
-    if (r) {
-      saveResult('tug', r);
-      finishTest(`${r.timeS} s${r.reliable ? '' : ' (not measured)'}`);
-    }
-  } else if (T.kind === 'balance') {
-    const cur = T.runner.current;
-    if (!cur) return;
-    const r = T.runner.update(feat, t);
-    bigText(`${Math.min(10, (t - cur.t0) / 1000).toFixed(1)} s`);
-    if (r) {
-      if (state.source === 'camera') speak(SAY.stop);
-      $('stageLog').textContent = T.runner.results.map((x, i) => `${STAGE_NAMES[i]}: ${x.heldS} s${x.passed ? '' : ' (feet moved)'}`).join(' · ');
-      if (T.runner.finished) {
-        saveResult('balance_4stage', T.runner.summary());
-        finishTest(`${STAGE_NAMES[T.runner.results.length - 1]}: ${r.heldS} s`, `${r.heldS} s`);
-      } else {
-        T.phase = 'ready';
-        cue(`Next: ${SAY.stages[T.runner.nextStage][lang()]}`);
-        if (state.source === 'camera' && $('readAloud').checked) {
-          T.timers.push(setTimeout(() => speak(SAY.stages[T.runner.nextStage]), 1200));
-        }
-        renderTestButtons();
-      }
-    }
-  }
+function factsHtml(r) {
+  const ref = L.chairStandReference($('age').value, $('sex').value);
+  const parts = [
+    `App count: <b>${r.stands}</b>${r.partialStandCounted ? ' (last one counted at halfway)' : ''}`,
+    `CDC reference (${esc($('age').value)}, ${esc($('sex').value)}): ${ref === null ? '–' : `${ref} or more`}`,
+    `Suggested level: ${r.reliable ? levelFor(r) : '–'}`,
+    `Tracking quality: ${Math.round((r.quality ?? 0) * 100)}%${r.reliable ? '' : ' (too low: no count shown)'}`,
+    `Setup time: ${app.setupS ?? '–'} s`,
+    `Wrists left the chest: ${r.armsUsedSuspected ? 'yes' : 'no'}`,
+    `Max trunk lean: ${r.maxTrunkLeanDeg ?? '–'}°`,
+  ];
+  return parts.join('<br>');
 }
 
-function onSeated() {
-  const T = state.test;
-  if (!T || T.kind !== 'tug' || T.phase !== 'running') return;
-  const r = T.runner.manualStop(testNow());
-  saveResult('tug', r);
-  finishTest(`${r.timeS} s (stopped by hand)`);
-}
-
-function finishTest(summary, big) {
-  const T = state.test;
-  T.phase = 'done';
-  T.timers.forEach(clearTimeout);
-  bigText(big ?? summary.split(' (')[0]);
-  cue(`${TESTS[T.kind].name}: ${summary}`);
-  renderTestButtons();
-  renderReport();
-}
-
-function saveResult(key, result) {
-  state.session.tests[key] = result;
-  // A new result replaces any level the nurse picked earlier for that exercise.
-  if (key === 'chair_stand_30s') delete state.levelChoice.sit_to_stand;
-  if (key === 'balance_4stage') delete state.levelChoice.balance;
-  if (!state.session.setup) {
-    state.session.setup = { framing_ok_at_start: state.framingOk, mean_luminance: state.lum };
-  }
-}
-
-// ------------------------------------------------------------ report and export
-function sessionBasics() {
-  return {
-    client: $('client').value.trim() || 'C-000',
+function saveSession() {
+  const r = app.result;
+  if (!r) return;
+  const hand = $('handCount').value === '' ? null : Number($('handCount').value);
+  const now = new Date();
+  const rows = store.get(STORE_KEY, []);
+  const row = {
+    date: now.toISOString().slice(0, 10),
+    time: now.toTimeString().slice(0, 5),
+    language: app.lang,
     age_band: $('age').value,
     sex: $('sex').value,
+    app_count: r.reliable ? r.stands : null,
+    hand_count: hand,
+    difference: r.reliable && hand !== null ? r.stands - hand : null,
+    needed_help: $('neededHelp').checked,
+    setup_s: app.setupS,
+    quality: r.quality,
+    reliable: r.reliable,
+    wrists_left_chest: r.armsUsedSuspected,
+    suggested_level: r.reliable ? levelFor(r) : null,
+    notes: $('notes').value.trim(),
   };
+  if (app.saved) rows[rows.length - 1] = row; else rows.push(row);
+  const okSaved = store.set(STORE_KEY, rows);
+  app.saved = okSaved;
+  $('saveMsg').textContent = okSaved ? ` Saved (${rows.length} in total)` : ' Could not save on this browser';
+  updateSessionsInfo();
 }
 
-function currentLevels() {
-  const b = sessionBasics();
-  const T = state.session.tests;
-  const target = L.targetLevels({ chair: T.chair_stand_30s, balance: T.balance_4stage, ageBand: b.age_band, sex: b.sex });
-  return L.proposeLevels(target, L.levelsFromSession(state.previous));
+function updateSessionsInfo() {
+  const n = store.get(STORE_KEY, []).length;
+  $('sessionsInfo').textContent = `${n} session${n === 1 ? '' : 's'} saved on this phone.`;
 }
 
-function exportSession() {
-  const p = state.perf;
-  const levels = currentLevels();
-  const routine = Object.values(levels).map((l) => {
-    const chosen = state.levelChoice[l.exercise] ?? l.level;
-    return {
-      exercise: l.exercise,
-      level: chosen,
-      prescription: L.EXERCISES[l.exercise].levels[chosen - 1],
-      proposed_level: l.level,
-      proposed_change: l.change,
-      reason: l.reason,
-      nurse: chosen === l.level ? 'accepted' : 'changed',
-    };
-  });
-  return {
-    app_version: APP_VERSION,
-    ...sessionBasics(),
-    date: new Date().toISOString().slice(0, 10),
-    created_at: new Date().toISOString(),
-    setup: { ...(state.session.setup ?? {}), source: state.source, model: state.modelKey, delegate: state.delegate },
-    tests: state.session.tests,
-    routine,
-    nurse_note: $('note').value.trim() || null,
-    perf: {
-      frames: p.frames,
-      avg_fps: Math.round(p.fps * 10) / 10,
-      mean_inference_ms: Math.round(L.mean(p.infer)),
-      p95_inference_ms: Math.round(L.percentile(p.infer, 95)),
-      pose_dropout_pct: p.frames ? Math.round((1 - p.poseFrames / p.frames) * 1000) / 10 : null,
-    },
+function exportCsv() {
+  const rows = store.get(STORE_KEY, []);
+  if (!rows.length) { $('sessionsInfo').textContent = 'No session saved yet.'; return; }
+  const cols = Object.keys(rows[0]);
+  const cell = (v) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-}
-
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const TREND = { better: ' ↑ better', worse: ' ↓ worse', same: ' = same' };
-const CHANGE = { up: '↑ up', down: '↓ down', same: '= same', start: 'start' };
-
-function renderReport() {
-  const basics = sessionBasics();
-  const session = { ...basics, tests: state.session.tests };
-  const rows = L.reportRows(session, state.previous);
-  const box = $('report');
-  if (!rows.length) {
-    box.innerHTML = '<p class="muted">No test done yet.</p>';
-    $('jsonOut').textContent = JSON.stringify(exportSession(), null, 2);
-    return;
-  }
-  const flagClass = (f) => (f === 'ok' ? 'flag-ok' : f === 'check' ? 'flag-check' : 'flag-bad');
-  let html = `<p class="muted">${esc(basics.client)} · ${esc(basics.sex)}, ${esc(basics.age_band)} · ${new Date().toLocaleDateString()}</p>`;
-  html += '<table><tr><th>Test</th><th>Today</th><th>Last visit</th><th>Reference</th><th>Flag</th></tr>';
-  for (const r of rows) {
-    html += `<tr><td>${esc(r.test)}</td><td>${esc(r.today)}</td><td>${esc(r.last)}</td><td>${esc(r.reference)}</td><td class="${flagClass(r.flag)}">${esc(r.flag)}${r.trend ? esc(TREND[r.trend]) : ''}</td></tr>`;
-  }
-  html += '</table>';
-
-  const chair = state.session.tests.chair_stand_30s;
-  if (chair) {
-    html += `<label class="check"><input type="checkbox" id="armsUsed" ${chair.armsUsedConfirmed ? 'checked' : ''}/> Arms were used in the chair stand (CDC scores 0)${chair.armsUsedSuspected ? ' · the camera saw the wrists leave the chest' : ''}</label>`;
-  }
-
-  const obs = L.observations(session);
-  if (obs.length) html += `<ul class="obs">${obs.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>`;
-
-  const levels = currentLevels();
-  html += '<h2 style="margin-top:14px">Proposed routine (nurse confirms)</h2><table><tr><th>Exercise</th><th>Level</th><th>Change</th></tr>';
-  for (const l of Object.values(levels)) {
-    const chosen = state.levelChoice[l.exercise] ?? l.level;
-    const opts = L.EXERCISES[l.exercise].levels.map((txt, i) => `<option value="${i + 1}" ${chosen === i + 1 ? 'selected' : ''}>${i + 1}: ${esc(txt)}</option>`).join('');
-    html += `<tr><td>${esc(l.name)}<div class="muted">${esc(l.reason)}</div></td><td><select data-level="${l.exercise}">${opts}</select></td><td>${esc(CHANGE[l.change] ?? l.change)}${chosen !== l.level ? '<div class="muted">changed by nurse</div>' : ''}</td></tr>`;
-  }
-  html += '</table>';
-  box.innerHTML = html;
-
-  $('armsUsed')?.addEventListener('change', (e) => {
-    state.session.tests.chair_stand_30s.armsUsedConfirmed = e.target.checked;
-    renderReport();
-  });
-  box.querySelectorAll('select[data-level]').forEach((sel) => {
-    sel.addEventListener('change', () => {
-      state.levelChoice[sel.dataset.level] = Number(sel.value);
-      renderReport();
-    });
-  });
-  $('jsonOut').textContent = JSON.stringify(exportSession(), null, 2);
-}
-
-function download() {
-  const data = JSON.stringify(exportSession(), null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
+  const csv = [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n');
   const a = document.createElement('a');
-  const b = sessionBasics();
-  a.href = URL.createObjectURL(blob);
-  a.download = `session_${b.client}_${new Date().toISOString().slice(0, 10)}.json`;
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `sit-to-stand-tests_${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
-async function copyJson() {
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(exportSession(), null, 2));
-    cue('Session JSON copied.');
-  } catch {
-    cue('Copy failed: open "Session JSON" below and copy by hand.');
-  }
-}
-
-async function loadPrevious(file) {
-  try {
-    const data = JSON.parse(await file.text());
-    if (!data || typeof data !== 'object' || !data.tests) throw new Error('This file is not a session JSON from this app.');
-    state.previous = data;
-    state.levelChoice = {};
-    cue(`Last visit loaded (${data.date ?? 'no date'}).`);
-    renderReport();
-  } catch (e) {
-    cue(`Could not read that file: ${e.message}`);
-  }
-}
-
 // ------------------------------------------------------------ wiring
 for (const band of L.AGE_BANDS) $('age').add(new Option(band, band, band === '75-79', band === '75-79'));
-$('btnCamera').addEventListener('click', startCamera);
-$('btnFile').addEventListener('click', () => $('fileInput').click());
-$('fileInput').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) startFile(f); e.target.value = ''; });
-$('rate').addEventListener('change', () => { if (state.source === 'file') video.playbackRate = Number($('rate').value) || 1; });
-document.querySelectorAll('[data-test]').forEach((b) => b.addEventListener('click', () => selectTest(b.dataset.test)));
-$('btnStart').addEventListener('click', onStart);
-$('btnStop').addEventListener('click', abortTest);
-$('btnSeated').addEventListener('click', onSeated);
-$('btnDownload').addEventListener('click', download);
-$('btnCopy').addEventListener('click', copyJson);
-$('prevFile').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) loadPrevious(f); });
-for (const id of ['client', 'age', 'sex', 'note']) $(id).addEventListener('change', renderReport);
-video.addEventListener('ended', () => { if (state.source === 'file') { cue('Video ended.'); $('btnPlay').textContent = 'Play'; } });
+document.querySelectorAll('.lang').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+$('startBtn').addEventListener('click', start);
+$('stopBtn').addEventListener('click', cancel);
+$('againBtn').addEventListener('click', start);
+$('saveBtn').addEventListener('click', saveSession);
+$('exportBtn').addEventListener('click', exportCsv);
+setLang(initialLang());
+updateSessionsInfo();
 
-// Video-file controls: position the clip at the start of a test, pause, replay.
-$('btnPlay').addEventListener('click', async () => {
-  if (state.source !== 'file') return;
-  if (video.paused || video.ended) {
-    if (video.ended) video.currentTime = 0;
-    await video.play();
-    $('btnPlay').textContent = 'Pause';
-  } else {
-    video.pause();
-    $('btnPlay').textContent = 'Play';
-  }
-});
-video.addEventListener('loadedmetadata', () => { $('seek').max = String(video.duration || 1); });
-video.addEventListener('timeupdate', () => { if (state.source === 'file') $('seek').value = String(video.currentTime); });
-$('seek').addEventListener('input', (e) => { if (state.source === 'file') video.currentTime = Number(e.target.value); });
-// Jumping in the clip breaks the timeline: cancel a running test and restart the filters.
-video.addEventListener('seeking', () => {
-  if (state.source !== 'file') return;
-  if (state.test && ['countdown', 'running'].includes(state.test.phase)) abortTest();
-  state.smoother.reset();
-  state.gate.reset();
-});
+// Test hook: skip waiting for a seated person (used by tools/ scripts).
+app.forceCountdown = () => { if (app.phase === 'waiting') startCountdown(); };
 </script>
 </body>
 </html>
