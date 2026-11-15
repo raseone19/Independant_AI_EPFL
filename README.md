@@ -14,6 +14,8 @@ Open **https://raseone19.github.io/Independant_AI_EPFL/** on the phone and allow
 
 The camera only works over HTTPS, which GitHub Pages provides. If the link does not load yet, turn Pages on once: **Settings > Pages**, Source "Deploy from a branch", branch `main`, folder `/ (root)`, Save, then wait about a minute. Every push to `main` updates the live app.
 
+Pages needs either a public repo or GitHub Pro (free for students through the GitHub Student Developer Pack). Either way the app's URL itself is public, but the app holds no data: everything stays on the phone.
+
 Phone setup: landscape, on a tripod at hip height, 3.5 to 4 m away, side-on to a 3 m walkway with the chair at one end, back camera, one person in view.
 
 ## Working on it as a team
@@ -21,7 +23,7 @@ Phone setup: landscape, on a tripod at hip height, 3.5 to 4 m away, side-on to a
 1. `git clone https://github.com/raseone19/Independant_AI_EPFL.git`
 2. Make a branch per change (`git checkout -b chair-stand-thresholds`), push it, open a pull request.
 3. `npm test` must pass before merging. Changing a threshold? Say which clips you replayed and what changed.
-4. **Never commit videos of people.** This repo is public. `recordings/`, `*.mp4` and `*.mov` are git-ignored: keep test clips on your own drive.
+4. **Never commit videos of people**, even while the repo is private. `recordings/`, `*.mp4` and `*.mov` are git-ignored: keep test clips on your own drive.
 
 ## A session, step by step
 
