@@ -1,0 +1,25 @@
+{
+  "app_version": "0.1.0",
+  "client": "EXAMPLE-01",
+  "age_band": "75-79",
+  "sex": "F",
+  "date": "2026-10-15",
+  "note": "Made-up example for demos: load it as 'Last visit' to see the trend column and the level changes.",
+  "tests": {
+    "tug": { "test": "tug", "timeS": 15.0, "stoppedBy": "auto", "walkDetected": true, "aboveCutoff": true, "quality": 0.95, "reliable": true },
+    "chair_stand_30s": { "test": "chair_stand_30s", "stands": 8, "armsUsedSuspected": false, "armsUsedConfirmed": false, "maxTrunkLeanDeg": 44, "quality": 0.96, "reliable": true },
+    "balance_4stage": {
+      "test": "balance_4stage",
+      "seconds": { "side_by_side": 10, "semi_tandem": 10, "tandem": 4, "one_leg": null },
+      "stagesPassed": 2,
+      "tandemHeld10": false,
+      "quality": 0.93,
+      "reliable": true
+    }
+  },
+  "routine": [
+    { "exercise": "sit_to_stand", "level": 1, "prescription": "2 hands, 5 stands", "nurse": "accepted" },
+    { "exercise": "heel_raises", "level": 1, "prescription": "Hold support, 10 raises", "nurse": "accepted" },
+    { "exercise": "balance", "level": 1, "prescription": "Tandem, hold support, 10 s", "nurse": "accepted" }
+  ]
+}

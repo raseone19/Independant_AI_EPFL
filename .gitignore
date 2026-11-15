@@ -1,0 +1,15 @@
+# Videos of people never go into this repo (it is public)
+recordings/
+*.mp4
+*.mov
+*.y4m
+
+# Local copies of MediaPipe files for offline tests
+wasm/
+vision_bundle.mjs
+*.task
+
+node_modules/
+__pycache__/
+e2e_out/
+.DS_Store
