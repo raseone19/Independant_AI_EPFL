@@ -1,6 +1,6 @@
 """Headless check of the simple chair-stand page (index.html) with a clip as fake camera.
 
-Runs: start screen -> camera -> forced countdown -> 30 s test -> result -> team notes saved -> CSV export.
+Runs: start screen -> team sheet -> camera -> forced countdown -> 30 s test -> result -> team notes saved -> CSV export -> #how link.
 Same setup as e2e_fake_camera.py (local MediaPipe copies, a .y4m clip).
 
   python tools/e2e_simple.py --mp ./package --model ./pose_landmarker_lite.task --y4m clip.y4m --out e2e_simple
@@ -56,6 +56,33 @@ def main():
         page.click("[data-lang=fr]")
         page.screenshot(path=str(out / "1_start_fr.png"), full_page=True)
 
+        # Team sheet ("How the app decides"), default settings then 90-94 / woman
+        page.click("details.team summary")
+        page.click("#howBtn")
+        page.wait_for_function("() => !document.getElementById('how').hidden")
+        report["steps"]["how_default"] = page.evaluate("""() => ({
+            badges: [...document.querySelectorAll('#how .badge')].map(b => b.textContent),
+            titles: [...document.querySelectorAll('#how .oTitle')].map(b => b.textContent),
+            current: document.querySelector('#how td.cur') && document.querySelector('#how td.cur').textContent,
+            settings: document.querySelector('#how .howNote b') && document.querySelector('#how .howNote b').textContent,
+            rows: document.querySelectorAll('#how tbody tr').length })""")
+        page.screenshot(path=str(out / "1b_how_sheet.png"), full_page=True)
+        page.click("#how .back >> nth=0")
+        page.wait_for_function("() => !document.getElementById('start').hidden")
+        page.select_option("#age", "90-94")
+        page.click("#howBtn")
+        page.wait_for_function("() => !document.getElementById('how').hidden")
+        report["steps"]["how_90_94_F"] = page.evaluate("""() => ({
+            badges: [...document.querySelectorAll('#how .badge')].map(b => b.textContent),
+            titles: [...document.querySelectorAll('#how .oTitle')].map(b => b.textContent),
+            current: document.querySelector('#how td.cur') && document.querySelector('#how td.cur').textContent,
+            settings: document.querySelector('#how .howNote b') && document.querySelector('#how .howNote b').textContent,
+            rows: document.querySelectorAll('#how tbody tr').length })""")
+        page.click("#how .back >> nth=1")
+        page.wait_for_function("() => !document.getElementById('start').hidden")
+        page.select_option("#age", "75-79")
+        page.click("details.team summary")  # close the panel again
+
         page.click("#startBtn")
         page.wait_for_function("() => window.__app.phase === 'waiting' && window.__app.perf.frames > 10", timeout=90000)
         time.sleep(2)
@@ -72,6 +99,12 @@ def main():
         page.screenshot(path=str(out / "4_result.png"), full_page=True)
 
         page.click("#teamNotes summary")
+        report["steps"]["facts"] = page.text_content("#resFacts")
+        page.click("#howBtn2")
+        page.wait_for_function("() => !document.getElementById('how').hidden")
+        page.click("#how .back >> nth=1")
+        page.wait_for_function("() => !document.getElementById('result').hidden")
+        report["steps"]["back_to_result"] = True
         page.fill("#handCount", "7")
         page.check("#neededHelp")
         page.fill("#notes", "Asked if the phone records her")
@@ -95,6 +128,14 @@ def main():
             report["steps"][f"title_{lang}"] = page.inner_text("h1")
         page.click("[data-lang=es]")
         page.screenshot(path=str(out / "6_start_es.png"), full_page=True)
+
+        direct = browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=2)
+        direct.on("pageerror", lambda e: report["page_errors"].append(str(e)))
+        direct.goto(url + "#how")
+        direct.wait_for_function("() => !document.getElementById('how').hidden")
+        report["steps"]["direct_link_opens_sheet"] = True
+        direct.click("#how .back >> nth=0")
+        report["steps"]["direct_back"] = direct.evaluate("() => ({ start: !document.getElementById('start').hidden, hash: location.hash })")
 
         land = browser.new_page(viewport={"width": 844, "height": 390}, device_scale_factor=2)
         land.goto(url)

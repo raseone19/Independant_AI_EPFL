@@ -15,6 +15,8 @@ The camera needs HTTPS, which GitHub Pages provides. To turn Pages on once: make
 
 ## Running a user test with the simple screen
 
+Before the test day, everyone running it reads the team sheet in the app: **For the team > How the app decides**, or directly https://raseone19.github.io/Independant_AI_EPFL/#how. It lists the possible results for the age band and sex that are set, what the person sees in each case, and the CDC reference table.
+
 1. Open the link on the phone and tap the person's language.
 2. Open **For the team** and set the age band and sex. They are only used for the suggested exercise and never shown to the person.
 3. Give the phone to the person and ask them to place it so it sees them. This is the setup task: note whether they need help.
@@ -25,6 +27,8 @@ The camera needs HTTPS, which GitHub Pages provides. To turn Pages on once: make
 Safety: a sturdy chair against a wall, someone always next to the person, and only the chair stand.
 
 ## How the simple screen decides
+
+The team sheet in the app (**How the app decides**) explains the same rule. It is built from the code's own numbers, so it stays in step with what the app does. After each test, **Team notes** says which level was suggested and why.
 
 - **Start:** whole body in view and seated (knee angle under 115°) for 1.5 s, then "3, 2, 1, go".
 - **Count:** one stand each time the knee straightens past 160°. At 30 s, a stand that is more than halfway up counts (CDC rule).

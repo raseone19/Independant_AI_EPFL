@@ -67,6 +67,28 @@
   .card .label { color: var(--muted); font-size: 18px; margin: 0 0 6px; }
   .card .ex { font-size: clamp(22px, 4.8vw, 28px); font-weight: 650; margin: 0; }
   .tip { background: #fff6e6; border: 1px solid #f2d9a8; color: #6b4300; border-radius: 16px; padding: 12px 16px; font-size: 19px; width: 100%; text-align: left; margin: 0; }
+
+  /* team sheet: how the app decides */
+  .how { text-align: left; align-items: stretch; gap: 12px; }
+  .how h2 { font-size: clamp(28px, 6vw, 38px); line-height: 1.15; margin: 4px 0 0; }
+  .how h3 { font-size: 20px; margin: 16px 0 0; }
+  .how p, .how li { font-size: 17px; margin: 0; }
+  .how .howNote { color: var(--muted); }
+  .how ul { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  .how a { color: var(--accent); }
+  #howBody { display: flex; flex-direction: column; gap: 10px; }
+  .back { align-self: flex-start; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 18px; font-size: 17px; cursor: pointer; }
+  .outcomes { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .outcome { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .outcome .badge { flex: 0 0 68px; height: 48px; border-radius: 12px; background: #e9f0fd; color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 21px; }
+  .outcome.muted .badge { background: #f1ede6; color: var(--muted); }
+  .outcome .oTitle { font-weight: 700; font-size: 18px; }
+  .outcome .oWhen { color: var(--muted); font-size: 16px; }
+  .outcome .oShows { font-size: 16px; margin-top: 4px; }
+  .refTable { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); font-size: 16px; }
+  .refTable th, .refTable td { padding: 7px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  .refTable thead th { color: var(--muted); font-weight: 600; }
+  .refTable td.cur { background: #e9f0fd; color: var(--accent); font-weight: 800; }
 </style>
 </head>
 <body>
@@ -98,6 +120,7 @@
       <div><label for="sex">Sex</label><select id="sex"><option value="F">F</option><option value="M">M</option></select></div>
       <div><label for="cam">Camera</label><select id="cam"><option value="user">Front</option><option value="environment">Back</option></select></div>
     </div>
+    <button id="howBtn" type="button">How the app decides</button>
     <p class="facts" id="sessionsInfo"></p>
     <button id="exportBtn" type="button">Export results (CSV)</button>
     <p class="facts">Full nurse version (3 tests and report): <a href="./nurse.html">nurse.html</a></p>
@@ -133,6 +156,7 @@
   <details class="team" id="teamNotes">
     <summary>Team notes</summary>
     <p class="facts" id="resFacts"></p>
+    <button id="howBtn2" type="button">How the app decides</button>
     <div class="row">
       <div><label for="handCount">Hand count</label><input id="handCount" type="number" min="0" max="60" inputmode="numeric" /></div>
       <div><label class="check" style="margin-top:34px"><input id="neededHelp" type="checkbox" /> Needed help to place the phone</label></div>
@@ -142,6 +166,15 @@
     <button id="saveBtn" type="button">Save</button>
     <span id="saveMsg" class="facts"></span>
   </details>
+</section>
+
+<!-- 4. Team sheet: possible results and how the app decides (English, never shown to participants) -->
+<section id="how" class="page how" lang="en" hidden>
+  <button class="back" type="button">‹ Back</button>
+  <h2>How the app decides</h2>
+  <p class="howNote">For the team. Participants never see this page.</p>
+  <div id="howBody"></div>
+  <button class="back" type="button">‹ Back</button>
 </section>
 
 <script type="module">
@@ -398,7 +431,7 @@ const clearTimers = () => { app.timers.forEach(clearTimeout); app.timers = []; }
 
 // ------------------------------------------------------------ screens
 function show(id) {
-  for (const s of ['start', 'camera', 'result']) $(s).hidden = s !== id;
+  for (const s of ['start', 'camera', 'result', 'how']) $(s).hidden = s !== id;
   window.scrollTo(0, 0);
 }
 
@@ -680,12 +713,31 @@ function levelFor(r) {
 // ------------------------------------------------------------ team notes
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 
+const sexWord = (s) => (s === 'M' ? 'man' : 'woman');
+const standsWord = (n) => `${n} stand${n === 1 ? '' : 's'}`;
+
+// The level the app shows and why, in words for the team (same rule as L.targetLevels).
+function decision(r) {
+  const age = $('age').value;
+  const sex = $('sex').value;
+  const ref = L.chairStandReference(age, sex);
+  const who = `${age}, ${sexWord(sex)}`;
+  if (!r.reliable) {
+    const min = Math.round(L.CONFIG.quality.minGoodFrameRatio * 100);
+    return { level: null, because: `tracking was ${Math.round((r.quality ?? 0) * 100)}%, under ${min}%` };
+  }
+  const level = levelFor(r);
+  if (level === 1) return { level, because: '0 stands were counted' };
+  if (ref === null) return { level, because: `there is no CDC reference for ${who}` };
+  const side = level === 2 ? 'under' : 'at or above';
+  return { level, because: `${standsWord(r.stands)} is ${side} the CDC reference of ${ref} (${who})` };
+}
+
 function factsHtml(r) {
-  const ref = L.chairStandReference($('age').value, $('sex').value);
+  const d = decision(r);
   const parts = [
     `App count: <b>${r.stands}</b>${r.partialStandCounted ? ' (last one counted at halfway)' : ''}`,
-    `CDC reference (${esc($('age').value)}, ${esc($('sex').value)}): ${ref === null ? '–' : `${ref} or more`}`,
-    `Suggested level: ${r.reliable ? levelFor(r) : '–'}`,
+    `Suggested: <b>${d.level ? `level ${d.level}` : 'no level'}</b>, because ${esc(d.because)}`,
     `Tracking quality: ${Math.round((r.quality ?? 0) * 100)}%${r.reliable ? '' : ' (too low: no count shown)'}`,
     `Setup time: ${app.setupS ?? '–'} s`,
     `Wrists left the chest: ${r.armsUsedSuspected ? 'yes' : 'no'}`,
@@ -729,6 +781,75 @@ function updateSessionsInfo() {
   $('sessionsInfo').textContent = `${n} session${n === 1 ? '' : 's'} saved on this phone.`;
 }
 
+// ------------------------------------------------------------ team sheet
+// Built from the code's own numbers (CONFIG, CDC table, level wording), so it cannot drift from what the app does.
+function renderHow() {
+  const age = $('age').value;
+  const sex = $('sex').value;
+  const ref = L.chairStandReference(age, sex) ?? 0;
+  const C = L.CONFIG;
+  const en = T.en;
+  const min = Math.round(C.quality.minGoodFrameRatio * 100);
+  const q = (s) => `“${esc(s)}”`;
+  const below = ref - 1 <= 1 ? { badge: '1', words: '1 stand' } : { badge: `1-${ref - 1}`, words: `1 to ${ref - 1} stands` };
+  const outcome = (badge, title, when, shows, muted = false) =>
+    `<li class="outcome${muted ? ' muted' : ''}"><div class="badge">${badge}</div><div>` +
+    `<p class="oTitle">${title}</p><p class="oWhen">${when}</p><p class="oShows">${shows}</p></div></li>`;
+  const rows = L.AGE_BANDS.map((band) => {
+    const row = L.CHAIR_STAND_BELOW_AVERAGE[band];
+    const cell = (s) => `<td${band === age && s === sex ? ' class="cur"' : ''}>${row[s]}+</td>`;
+    return `<tr><th scope="row">${band}</th>${cell('M')}${cell('F')}</tr>`;
+  }).join('');
+
+  $('howBody').innerHTML = `
+    <h3>One test, one number</h3>
+    <p>The person does the 30-second chair stand, arms crossed on the chest. The app counts a stand each time the knee straightens past ${C.chairStand.standAboveDeg}°. At 30 s, a stand more than halfway up also counts (CDC rule).</p>
+
+    <h3>Possible results</h3>
+    <p class="howNote">Current settings: <b>${esc(age)}, ${sexWord(sex)}</b>, so the CDC reference is <b>${ref} stands</b>. Change them under <i>For the team</i> on the start screen.</p>
+    <p class="howNote">The app goes down this list and stops at the first case that fits:</p>
+    <ol class="outcomes">
+      ${outcome('?', 'No count', `Fewer than ${min}% of the video frames were usable.`, `Screen: ${q(en.notSeen)} No exercise. Check the phone position and the light, then tap ${q(en.again)}.`, true)}
+      ${outcome('0', 'Level 1', '0 stands counted.', q(en.levels[0]))}
+      ${outcome(below.badge, 'Level 2', `${below.words}: under the reference.`, q(en.levels[1]))}
+      ${outcome(`${ref}+`, 'Level 3', `${ref} stands or more: at or above the reference.`, q(en.levels[2]))}
+    </ol>
+    <p class="howNote">Every level comes with “3 times a week”. Level 4 (without hands, 2 sets of 10) exists but is never proposed.</p>
+    <p class="howNote">If the wrists leave the chest, the result adds ${q(en.armsTip)} The level does not change.</p>
+
+    <h3>CDC reference by age and sex</h3>
+    <table class="refTable">
+      <thead><tr><th scope="col">Age</th><th scope="col">Men</th><th scope="col">Women</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="howNote">Stands in 30 seconds. Fewer is below average for that age and sex, which the CDC links to a risk of falls. The current setting is highlighted.</p>
+
+    <h3>Keep in mind</h3>
+    <ul>
+      <li>This is a first rule for the user test. No nurse or physiotherapist has checked it yet.</li>
+      <li>Pushing up with the hands does not lower the level.</li>
+      <li>Just under the reference (${standsWord(Math.max(ref - 1, 1))} for the current settings) gives level 2, which is easier than what the person just did.</li>
+      <li>Set age band and sex before each person. Default: 75-79, woman.</li>
+    </ul>
+
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://stacks.cdc.gov/view/cdc/157303/cdc_157303_DS1.pdf" target="_blank" rel="noopener">CDC STEADI: 30-second chair stand</a></li>
+      <li><a href="https://www.med.unc.edu/aging/cgwep/wp-content/uploads/sites/865/2024/04/Otago-Guide-for-PT_April-2024-update.pdf" target="_blank" rel="noopener">Otago Exercise Program: sit-to-stand levels A, B, C</a></li>
+    </ul>`;
+}
+
+function openHow(from) {
+  app.howFrom = from;
+  renderHow();
+  show('how');
+}
+
+function closeHow() {
+  if (location.hash === '#how') history.replaceState(null, '', location.pathname + location.search);
+  show(app.howFrom || 'start');
+}
+
 function exportCsv() {
   const rows = store.get(STORE_KEY, []);
   if (!rows.length) { $('sessionsInfo').textContent = 'No session saved yet.'; return; }
@@ -754,8 +875,12 @@ $('stopBtn').addEventListener('click', cancel);
 $('againBtn').addEventListener('click', start);
 $('saveBtn').addEventListener('click', saveSession);
 $('exportBtn').addEventListener('click', exportCsv);
+$('howBtn').addEventListener('click', () => openHow('start'));
+$('howBtn2').addEventListener('click', () => openHow('result'));
+document.querySelectorAll('#how .back').forEach((b) => b.addEventListener('click', closeHow));
 setLang(initialLang());
 updateSessionsInfo();
+if (location.hash === '#how') openHow('start'); // direct link for the team: .../#how
 
 // Test hook: skip waiting for a seated person (used by tools/ scripts).
 app.forceCountdown = () => { if (app.phase === 'waiting') startCountdown(); };
